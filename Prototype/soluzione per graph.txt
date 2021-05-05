@@ -1,0 +1,109 @@
+all'inserimento di un nodo => attribuire sempre il prossimo n_id (n++)
+i vicini di n saranno 
+```
+vicini_n = []
+for (i = 1; n % i == 0; i *= 2){vicini_n += (n-i if exists)}
+```
+alla rimozione di n:
+```
+for v in vicini:
+	v.updateVicini(vicini)
+
+updateVicini(newVicini)
+	vicini = vicini U newVicini
+```
+Inserimento O(log n)
+Rimozione O(log n)
+Ricerca caso migliore O(log n), caso peggiore O(n)
+
+
+
+
+la catena avrà una forma del genere
+
++-------------------------------+
+|                               |
++---------------+---------------+
+|               |               |
++-------+-------+-------+-------+
+|       |       |       |       |
++---+---+---+---+---+---+---+---+    <- collegamenti
+|   |   |   |   |   |   |   |   |
+o-o-o-o-o-o-o-o-o-o-o-o-o-o-o-o-o    <- nodi
+0 1 2 3 4 5 6 7 8 9 A B C D E F G    <- nomi
+
+1.vivini = [0, 2]
+G.vicini = [0, 8, C, E, F]
+
+nel caso in cui E esca dalla rete:
+
+
++-------------------------------+
+|                               |
++---------------+---------------+
+|               |               |
++-------+-------+-------+-------+
+|       |       |       |       |
++---+---+---+---+---+---+-+---+-+
+|   |   |   |   |   |   | |   | |
+o-o-o-o-o-o-o-o-o-o-o-o-o-o-x-o-o
+0 1 2 3 4 5 6 7 8 9 A B C D E F G
+
+
+successivamente, se C esce dalla rete
+
+
++-------------------------------+
+|                               |
++---------------+---------------+
+|               |               |
++-------+-------+---+-+---+---+-+
+|       |       |   | |   |   | |
++---+---+---+---+---+-+---+---+-+
+|   |   |   |   |   | |   |   | |
+o-o-o-o-o-o-o-o-o-o-o-o-x-o-x-o-o
+0 1 2 3 4 5 6 7 8 9 A B C D E F G
+
+il caso peggiore si riassume nell'uscita di tutti i nodi pari (tranne l'ultimo)
+inserimento e rimozione diventano O(1) ma la ricerca degenera in O(n)
+
+o-o
+0 1
+
+x-o
+0 1
+
+x-o-o
+0 1 2
+
+x-o-o-o
+0 1 2 3
+
+x-o-x-o-o
+0 1 2 3 4
+
+x-o-x-o-x-o-o
+0 1 2 3 4 5 6
+
+x-o-x-o-x-o-x-o-o
+0 1 2 3 4 5 6 7 8
+
+...
+
+
+nel caso medio (ammettendo cioè alcune rimozioni di nodi pari 
+prima dell'inserimento di nuovi nodi) si ha comunque una ricerca simil-logaritmica
+
+in questo esempio il nodo 8 esce subito dopo essere entrato:
+
+
++-------------------------------+
+|                               |
++-------------+                 |
+|             |                 |
++-------+-----+         +-------+
+|       |     |         |       |
++---+---+---+-+     +---+---+---+
+|   |   |   | |     |   |   |   |
+o-o-o-o-o-o-o-o-x-o-o-o-o-o-o-o-o
+0 1 2 3 4 5 6 7 8 9 A B C D E F G
