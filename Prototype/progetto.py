@@ -104,7 +104,7 @@ class Node:
         print(f"ciao sono {self.port}\ti miei vicini sono {[p for p in self.neighbours.keys()]}\n\tpending requests: {self.pending_requests}\n\tactive_requests: {self.active_requests}")
 
 def main():
-    ds = DiscoveryServer(17)
+    ds = DiscoveryServer(129)
     ds.log()
 #   ds.addNode(1337)
 #   ds.log()
