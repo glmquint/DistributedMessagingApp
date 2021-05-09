@@ -14,7 +14,7 @@ class DiscoveryServer:
         self.nei_chance = 2
         self.nodes = [] # {(int)port : (Node)node}
         for i in range(numNodes):
-            self.addNode()
+            self.addNode(i)
 
     def addNode(self, nodePort=-1):
         if nodePort == -1:
@@ -101,10 +101,10 @@ class Node:
 
 
     def log(self):
-        print(f"ciao sono {self.port}\ti miei vicini sono {[p for p in self.neighbours.keys()]}\n\tpending requests: {self.pending_requests}\n\tactive_requests: {self.active_requests}")
+        print(f"ciao sono {self.port}\ti miei vicini sono (len: {len(self.neighbours.items())}){[p for p in self.neighbours.keys()]}\n\tpending requests: {self.pending_requests}\n\tactive_requests: {self.active_requests}")
 
 def main():
-    ds = DiscoveryServer(129)
+    ds = DiscoveryServer(1025)
     ds.log()
 #   ds.addNode(1337)
 #   ds.log()
