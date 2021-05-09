@@ -11,7 +11,7 @@
 #define REQ_LEN 6
 
 void menu(){
-    printf("questo è il menu!");
+    printf("questo è il menu!\n");
 }
 
 int main(){
@@ -52,30 +52,48 @@ int main(){
 
     for(;;) {
         read_fds = master;
-        select(fdmax + 1, &read_fds, NULL, NULL, NULL);
+        struct timeval to;
+        to.tv_sec = 0;
+        to.tv_usec = 0;
+        if (select(fdmax + 1, &read_fds, NULL, NULL, 0) > 0){
 
-        for (i = 0; i <= fdmax; i++) {
-            printf("%d\n", i);
-            if (i == listener) {
-                addrlen = sizeof(cl_addr);
-                newfd = accept(listener, (struct sockaddr*)&cl_addr, &addrlen);
-                FD_SET(newfd, &master);
-                if (newfd > fdmax)
-                    fdmax = newfd;
-            }
-            else if (i == STDIN) {
-                if (richesta_in_gestione == 0)
-                    menu();
-            } else {
-                ret = recv(i, (void *)buffer, REQ_LEN, 0);
-                if (ret < 0) {
-                    perror("ricezione");
-                    exit(1);
+            for (i = 0; i <= fdmax; i++) {
+                printf("%d\n", i);
+                if (FD_ISSET(i, &read_fds)){
+                    printf("i: %d", i);
+                    if (i == listener) {
+                        addrlen = sizeof(cl_addr);
+                        newfd = accept(listener, (struct sockaddr*)&cl_addr, &addrlen);
+                        FD_SET(newfd, &master);
+                        if (newfd > fdmax)
+                            fdmax = newfd;
+                    }
+                    else if (i == STDIN) {
+                        if (richesta_in_gestione == 0)
+                            menu();
+                        //close(i);
+                        fgets(buffer, 100, stdin);
+                        //sscanf(buffer, "%s", buffer);
+                        printf("%s", buffer);
+                    }
+                    else {
+                        ret = recv(i, (void *)buffer, REQ_LEN, 0);
+                        if (ret < 0) {
+                            perror("ricezione");
+                            exit(1);
+                        }
+                        printf("Ricevuto messaggio valido %s\n", buffer);
+                        send(i, (void*)buffer, REQ_LEN, 0);
+                        close(i);
+                        FD_CLR(i, &master);
+
+                    }
                 }
-                printf("Ricevuto messaggio non valido\n");
 
-            }
-
+            } 
+        }else {
+            //printf("\rjust waitin'");
+            //fflush(stdout);
         }
 
     }
