@@ -3,8 +3,9 @@
 #define VECTOR_INIT_CAPACITY 6
 #define UNDEFINE  -1
 #define SUCCESS 0
-#define VECTOR_INIT(vec) vector vec;\
+/*#define VECTOR_INIT(vec) vector vec;\
  vector_init(&vec)
+ */
 //Store and track the stored data
 typedef struct sVectorList
 {
@@ -148,8 +149,11 @@ void vector_init(vector *v)
 int main(int argc, char *argv[])
 {
     int i =0;
+    int* val;
     //init vector
-    VECTOR_INIT(v);
+    //VECTOR_INIT(v);
+    vector v;
+    vector_init(&v);
     //Add data in vector
     v.pfVectorAdd(&v,"aticleworld.com\n");
     v.pfVectorAdd(&v,"amlendra\n");
@@ -167,5 +171,23 @@ int main(int argc, char *argv[])
     {
         printf("%s", (char*)v.pfVectorGet(&v, i));
     }
+    printf("\n\n###### my tests #######\n\n");
+    vector vec;
+    vector_init(&vec);
+    val = malloc(sizeof(int));
+    *val = 1;
+    vec.pfVectorAdd(&vec, val);
+    val = malloc(sizeof(int));
+    *val = 2;
+    vec.pfVectorAdd(&vec, val);
+    val = malloc(sizeof(int));
+    *val = 3;
+    vec.pfVectorAdd(&vec, val);
+    for (i = 0; i < vec.pfVectorTotal(&vec); i++)
+    {
+        printf("%d\n", *(int*)vec.pfVectorGet(&vec, i));
+    }
+    v.pfVectorFree(&v);
+    vec.pfVectorFree(&vec);
     return 0;
 }
