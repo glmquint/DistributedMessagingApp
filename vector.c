@@ -1,21 +1,54 @@
 #include <stdio.h>
 #include <stdlib.h>
+#define DEBUG_OFF
 
 #include "vector.h"
 
+#define INIT_COMMON(type)\
+    v->capacity = VECTOR_INIT_CAPACITY;\
+    v->total = 0;\
+    v->items = malloc(sizeof(type) * v->capacity);
+
+#define RESIZE_COMMON\
+    if (items) {\
+        v->items = items;\
+        v->capacity = capacity;\
+    }
+
+#define ADD_COMMON(resize_func)\
+    if (v->capacity == v->total)\
+        resize_func (v, v->capacity * 2);\
+    v->items[v->total++] = item;
+
+#define SET_COMMON\
+    if (index >= 0 && index < v->total)\
+        v->items[index] = item;
+
+#define GET_COMMON(type)\
+    if (index >= 0 && index < v->total)\
+        return v->items[index];\
+    return type;
+
+#define DELETE_COMMON(resize_func,retval)\
+    if (index < 0 || index >= v->total)\
+        return;\
+    v->items[index] = retval;\
+    for (int i = index; i < v->total - 1; i++) {\
+        v->items[i] = v->items[i + 1];\
+        v->items[i + 1] = retval;\
+    }\
+    v->total--;\
+    if (v->total > 0 && v->total == v->capacity / 4)\
+        resize_func (v, v->capacity / 2);
+
 void vector_init(vector *v)
 {
-    v->capacity = VECTOR_INIT_CAPACITY;
-    v->total = 0;
-    v->items = malloc(sizeof(void *) * v->capacity);
+    INIT_COMMON(void *)
 }
 void cvector_init(cvector *v)
 {
-    v->capacity = VECTOR_INIT_CAPACITY;
-    v->total = 0;
-    v->items = malloc(sizeof(int) * v->capacity);
+    INIT_COMMON(int)
 }
-
 
 int vector_total(vector *v)
 {
@@ -26,108 +59,58 @@ int cvector_total(cvector *v)
     return v->total;
 }
 
-
 void vector_resize(vector *v, int capacity)
 {
     #ifdef DEBUG_ON
     printf("vector_resize: %d to %d\n", v->capacity, capacity);
     #endif
-
     void **items = realloc(v->items, sizeof(void *) * capacity);
-    if (items) {
-        v->items = items;
-        v->capacity = capacity;
-    }
+    RESIZE_COMMON
 }
 void cvector_resize(cvector *v, int capacity)
 {
     #ifdef DEBUG_ON
     printf("vector_resize: %d to %d\n", v->capacity, capacity);
     #endif
-
     void *items = realloc(v->items, sizeof(int) * capacity);
-    if (items) {
-        v->items = items;
-        v->capacity = capacity;
-    }
+    RESIZE_COMMON
 }
-
 
 void vector_add(vector *v, void *item)
 {
-    if (v->capacity == v->total)
-        vector_resize(v, v->capacity * 2);
-    v->items[v->total++] = item;
+    ADD_COMMON(vector_resize);
 }
 void cvector_add(cvector *v, int item)
 {
-    if (v->capacity == v->total)
-        cvector_resize(v, v->capacity * 2);
-    v->items[v->total++] = item;
+    ADD_COMMON(cvector_resize);
 }
-
 
 void vector_set(vector *v, int index, void *item)
 {
-    if (index >= 0 && index < v->total)
-        v->items[index] = item;
+    SET_COMMON
 }
 void cvector_set(cvector *v, int index, int item)
 {
-    if (index >= 0 && index < v->total)
-        v->items[index] = item;
+    SET_COMMON
 }
-
 
 void *vector_get(vector *v, int index)
 {
-    if (index >= 0 && index < v->total)
-        return v->items[index];
-    return NULL;
+    GET_COMMON(NULL)
 }
 int cvector_get(cvector *v, int index)
 {
-    if (index >= 0 && index < v->total)
-        return v->items[index];
-    return -2147483648;
+    GET_COMMON((int)0x80000000)
 }
-
 
 void vector_delete(vector *v, int index)
 {
-    if (index < 0 || index >= v->total)
-        return;
-
-    v->items[index] = NULL;
-
-    for (int i = index; i < v->total - 1; i++) {
-        v->items[i] = v->items[i + 1];
-        v->items[i + 1] = NULL;
-    }
-
-    v->total--;
-
-    if (v->total > 0 && v->total == v->capacity / 4)
-        vector_resize(v, v->capacity / 2);
+    DELETE_COMMON(vector_resize, NULL)
 }
 void cvector_delete(cvector *v, int index)
 {
-    if (index < 0 || index >= v->total)
-        return;
-
-    v->items[index] = -2147483648;
-
-    for (int i = index; i < v->total - 1; i++) {
-        v->items[i] = v->items[i + 1];
-        v->items[i + 1] = -2147483648;
-    }
-
-    v->total--;
-
-    if (v->total > 0 && v->total == v->capacity / 4)
-        cvector_resize(v, v->capacity / 2);
+    DELETE_COMMON(cvector_resize, (int)0x8000000000)
 }
-
 
 void vector_free(vector *v)
 {
