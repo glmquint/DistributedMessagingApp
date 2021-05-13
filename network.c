@@ -12,7 +12,25 @@
 #define REQ_LEN 6
 #define BUFFER_LEN 1024
 #define DEBUG_ON
-#define USE_FORK
+#define DONT_USE_FORK
+
+int sendNewUDP(int port, char* msg)
+{
+    return(-1);
+}
+
+void sendUDP(int sd, char* msg)
+{
+}
+
+int sendNewTCP(int port, char* msg)
+{
+    return(-1);
+}
+
+void sendTCP(int sd, char* msg)
+{
+}
 
 int IOMultiplex(int port, 
                 bool use_udp, 
