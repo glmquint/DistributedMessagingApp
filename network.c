@@ -11,7 +11,14 @@
 #define STDIN 0
 #define REQ_LEN 6
 #define BUFFER_LEN 1024
+
 #define DEBUG_ON
+
+#ifdef DEBUG_ON
+# define DEBUG_PRINT(x) printf x
+#else
+# define DEBUG_PRINT(x) do {} while (0)
+#endif
 #define DONT_USE_FORK
 
 int sendNewUDP(int port, char* msg)
@@ -39,7 +46,7 @@ int IOMultiplex(int port,
                 void (*handleTCP)(int sd, char* cmd),
                 void (*handleTimeout)())
 {
-    int ret, newfd, fdmax, tcp_listener, udp_listener, i;
+    int ret, newfd, fdmax, tcp_listener, udp_socket, i;
 #ifdef USE_FORK
     pid_t pid;
 #endif
@@ -78,18 +85,18 @@ int IOMultiplex(int port,
     FD_SET(tcp_listener, &master);
     FD_SET(STDIN, &master);
 
-    udp_listener = -1;
+    udp_socket = -1;
     if (use_udp) {
-        udp_listener = socket(AF_INET, SOCK_DGRAM, 0);
-        ret = bind(udp_listener, (struct sockaddr *)&my_addr, sizeof(my_addr));
+        udp_socket = socket(AF_INET, SOCK_DGRAM, 0);
+        ret = bind(udp_socket, (struct sockaddr *)&my_addr, sizeof(my_addr));
         if (ret < 0) {
-            perror("Bind udp_listener\n");
+            perror("Bind udp_socket\n");
             exit(0);
         }
-        FD_SET(udp_listener, &master);
+        FD_SET(udp_socket, &master);
     }
 
-    fdmax = (tcp_listener > udp_listener) ? tcp_listener : udp_listener;
+    fdmax = (tcp_listener > udp_socket) ? tcp_listener : udp_socket;
 
     for(;;) {
         read_fds = master;
@@ -101,9 +108,7 @@ int IOMultiplex(int port,
             for (i = 0; i <= fdmax; i++) {
                 //printf("%d\n", i);
                 if (FD_ISSET(i, &read_fds)) {
-                    #ifdef DEBUG_ON
-                    printf("i: %d\n", i);
-                    #endif
+                    DEBUG_PRINT(("i: %d\n", i));
 
                     if (i == tcp_listener) {
                         addrlen = sizeof(cl_addr);
@@ -115,24 +120,18 @@ int IOMultiplex(int port,
                     else if (i == STDIN) {
                         memset(buffer, 0, BUFFER_LEN);
                         fgets(buffer, BUFFER_LEN - 1, stdin);
-                        #ifdef DEBUG_ON
-                        printf("comando da stdin: %s\n", buffer);
-                        #endif
+                        DEBUG_PRINT(("comando da stdin: %s\n", buffer));
                         handleCmd(buffer);
                     }
-                    else if (i == udp_listener) {
-                        #ifdef DEBUG_ON
-                        printf("udp_listener: %d\n", i);
-                        #endif
+                    else if (i == udp_socket) {
+                        DEBUG_PRINT(("udp_socket: %d\n", i));
                         addrlen = sizeof(connecting_addr);
                         ret = recvfrom(i, buffer, REQ_LEN, 0, (struct sockaddr *)&connecting_addr, &addrlen);
                         handleUDP(i, buffer);
                         //printf("%d\t%s\n", ret, buffer);
                     }
                     else {
-                        #ifdef DEBUG_ON
-                        printf("tcp_listener: %d\n", i);
-                        #endif
+                        DEBUG_PRINT(("tcp_listener: %d\n", i));
                         memset(buffer, 0, REQ_LEN + 1);
 
                         ret = recv(i, (void *)buffer, REQ_LEN, 0);
@@ -140,9 +139,7 @@ int IOMultiplex(int port,
                             perror("ricezione");
                             exit(1);
                         }
-                        #ifdef DEBUG_ON
-                        printf("Ricevuto messaggio valido %s\n", buffer);
-                        #endif
+                        DEBUG_PRINT(("Ricevuto messaggio valido %s\n", buffer));
 
                         #ifdef USE_FORK
                         pid = fork();
@@ -176,7 +173,7 @@ int IOMultiplex(int port,
 
     }
     close(tcp_listener);
-    close(udp_listener);
+    close(udp_socket);
 }
 
 
