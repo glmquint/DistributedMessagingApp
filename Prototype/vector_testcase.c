@@ -38,9 +38,29 @@ int main(void)
     CVECTOR_ADD(cv, 13);
     CVECTOR_ADD(cv, 14);
     CVECTOR_ADD(cv, 15);
+    CVECTOR_ADD(cv, 13);
+    CVECTOR_ADD(cv, 13);
+    CVECTOR_ADD(cv, 13);
+    CVECTOR_ADD(cv, 13);
+    CVECTOR_ADD(cv, 13);
+    CVECTOR_ADD(cv, 13);
+    CVECTOR_ADD(cv, 14);
+    CVECTOR_ADD(cv, 15);
+    CVECTOR_ADD(cv, 14);
+    CVECTOR_ADD(cv, 15);
+    CVECTOR_ADD(cv, 14);
+    CVECTOR_ADD(cv, 15);
+    CVECTOR_ADD(cv, 14);
+    CVECTOR_ADD(cv, 15);
+    CVECTOR_ADD(cv, 14);
+    CVECTOR_ADD(cv, 15);
+    CVECTOR_ADD(cv, 14);
+    CVECTOR_ADD(cv, 15);
+
+    CVECTOR_DELETE(cv, 1);
 
     for (i = 0; i < CVECTOR_TOTAL(cv); i++)
-        printf("%d ", CVECTOR_GET(cv, int, i));
+        printf("%d ", CVECTOR_GET(cv, int, i+1));
     printf("\n");
 
     VECTOR_FREE(v);
