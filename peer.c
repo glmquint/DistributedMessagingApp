@@ -9,9 +9,21 @@
 
 #define DEBUG_ON
 
+struct Peer{
+    int port;
+    cvector neighbors;
+    vector pending_requests;
+}peer;
+
+void initialize(char* port)
+{
+    sscanf(port, "%d", &peer.port);
+    printf("sono peer: %d\n", peer.port);
+}
+
 void menu()
 {
-    printf("questo è il menu!\n");
+    printf("questo è il menu del peer!\n");
 }
 
 void handleCmd(char* cmd)
@@ -22,18 +34,17 @@ void handleCmd(char* cmd)
     menu();
 }
 
-void handleBootReq(int sd, char* cmd)
+// will never be called if use_udp is set to false in IOMultiplexer
+void emptyFunc(int sd, char* cmd)
 {
-    #ifdef DEBUG_ON
-    printf("handling boot from %d: %s\n", sd, cmd);
-    #endif
+    return;
 }
 
 void handleReq(int sd, char* cmd)
 {
     #ifdef DEBUG_ON
     printf("handling req from %d: %s\n", sd, cmd);
-    //sleep(5); // simulating latency
+    sleep(5);
     printf("done with request\n");
     #endif
 }
@@ -52,10 +63,8 @@ void handleTimeout()
 
 int main(int argc, char *argv[])
 {
-    int ds_port;
-    sscanf(argv[1], "%d", &ds_port);
-    printf("sono ds: %d\n", ds_port);
+    initialize(argv[1]);
     menu();
     fflush(stdout);
-    IOMultiplex(ds_port, true, handleCmd, handleBootReq, handleReq, handleTimeout);
+    IOMultiplex(peer.port, false, handleCmd, emptyFunc, handleReq, handleTimeout);
 }
