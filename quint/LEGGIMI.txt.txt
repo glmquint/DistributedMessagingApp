@@ -1,0 +1,30 @@
+Per utilizzare i dati condivisi tra i peer bisogna connettere i peer alla rete con il comando start 127.0.0.1 4242.
+Il formato dei comandi è del tipo : get aggr type period. 
+Es: get totale tampone 01:12:2020-03:12:2020, get variazione nuovo caso 01:12:2020-03:12:2020
+
+Dati salvati nei rispettivi file salvaRegistro:
+salvaRegistro5001:
+data		tamponi	nuovi casi	completo
+1/12/2020		1	1	1
+2/12/2020		3	4	0
+8/12/2020		7	4	0
+
+salvaRegistro5002:
+data		tamponi	nuovi casi	completo
+3/12/2020		2	5	1
+8/12/2020		3	4	0
+15/12/2020	8	12	0
+
+salvaRegistro5003:
+data		tamponi	nuovi casi	completo
+2/12/2020		1	1	0
+
+salvaRegistro5004:
+data		tamponi	nuovi casi	completo
+1/1/2021		1	1	0
+3/1/2021		1	3	0
+
+salvaRegistro5005:
+data 		tamponi	nuovi casi	completo
+2/1/2021		1	1	0
+3/1/2021		1	1	0
