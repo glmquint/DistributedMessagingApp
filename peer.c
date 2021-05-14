@@ -31,6 +31,11 @@ void initialize(char* port)
 
 void boot(char* ds_addr, int ds_port)
 {
+    int len;
+    char neighbors_list[1024];
+    memset(neighbors_list, 0, sizeof(neighbors_list));
+    len = bootReq(peer.port, ds_addr, ds_port, neighbors_list);
+    DEBUG_PRINT(("ricevuto da boot %d elementi: %s\n\n",len, neighbors_list)); 
 }
 
 void menu()
@@ -140,11 +145,15 @@ void handleCmd(char* cmd)
     {
         printf("comando non valido\n\n");
     }
+    printf("\n>> ");
+    fflush(stdout);
 }
 
-// will never be called if use_udp is set to false in IOMultiplexer
-void emptyFunc(int sd, char* cmd)
+// Will never be called if use_udp is set to false in IOMultiplexer
+// This is the case for peers, as they shouldn't expect an inbound UDP connection
+void emptyFunc(int sd, char* cmd, char* answer)
 {
+    /* NOTREACHED */
     return;
 }
 
@@ -173,6 +182,7 @@ int main(int argc, char *argv[])
 {
     initialize(argv[1]);
     menu();
+    printf("\n>> ");
     fflush(stdout);
     IOMultiplex(peer.port, false, handleCmd, emptyFunc, handleReq, handleTimeout);
 }

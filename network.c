@@ -7,10 +7,12 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include <stdbool.h>
+#include "vector.h"
 
 #define STDIN 0
 #define REQ_LEN 6
 #define BUFFER_LEN 1024
+#define TIMEOUT 1
 
 #define DEBUG_ON
 
@@ -21,6 +23,133 @@
 #endif
 #define DONT_USE_FORK
 
+void sendNeighborsUpdate(int peer, cvector new_neighbors)
+{
+    int ret, sd;
+    struct sockaddr_in peer_addr;
+    char buffer[1024];
+    memset(buffer, 0, sizeof(buffer));
+
+    if (peer <= 0)
+        return;
+
+    sd = socket(AF_INET, SOCK_STREAM, 0);
+
+    memset(&peer_addr, 0, sizeof(peer_addr));
+    peer_addr.sin_family = AF_INET;
+    peer_addr.sin_port = htons(peer);
+    inet_pton(AF_INET, "127.0.0.1", &peer_addr.sin_addr);
+
+    ret = connect(sd, (struct sockaddr *)&peer_addr, sizeof(peer_addr));
+    if (ret < 0)
+    {
+        perror("Errore in fase di connessione: ");
+        exit(-1);
+    }
+
+    strcpy(buffer, "UPDNEI");
+
+    ret = send(sd, (void *)buffer, REQ_LEN, 0);
+    if (ret < 0)
+    {
+        perror("Errore in fase di invio: ");
+        exit(1);
+    }
+
+    strcpy(buffer, RegistroPeer.boot_vicini);
+
+    printf("Comunico al peer %d i suoi nuovi vicini\n\n", peer);
+    ret = send(sd, (void *)buffer, BOOT_RESP, 0);
+    if (ret < 0)
+    {
+        perror("Errore in fase di invio: ");
+        exit(1);
+    }
+}
+
+int bootReq(int p_port, char* ds_addr, int ds_port, char* nei_list)
+{
+    /* POSSIBLE NON-BLOCKING WIP ALTERNATIVE
+    SOCKET     theSocket;
+    struct timeval stTimeOut;
+
+    fd_set stReadFDS;
+    fd_set stExcepFDS;
+    fd_set stWriteFDS;
+
+    FD_ZERO(&stReadFDS);
+    FD_ZERO(&stExcepFDS);
+    FD_ZERO(&stWriteFDS);
+
+    // Timeout of one second
+    stTimeOut.tv_sec = 1;
+    stTimeOut.tv_usec = 0;
+
+    FD_SET(theSocket, &stReadFDS);
+    FD_SET(theSocket, &stExcepFDS);
+    FD_SET(theSocket, &stWriteFDS);
+
+    int test = 0;
+    char szBuf[256];
+    memset(szBuf, ' ', sizeof(szBuf));
+
+    while (true) {
+        int t = select(-1, &stReadFDS, &stWriteFDS, &stExcepFDS, &stTimeOut);
+        if (t = SOCKET_ERROR) {
+            fprintf(stderr, "Call to select() failed");
+            exit(1);
+        }
+        if (t != 0) {
+            printf("Something to do...");
+            if (FD_ISSET (theSocket, &stExcepFDS)) {
+                 printf("Exception flag is set");// Deal with this
+            }
+            if (FD_ISSET(theSocket, &stReadFDS)) {
+                 printf("There is data pending to be read..."); // Read data with recv()
+            }
+            if (FD_ISSET(theSocket, &stWriteFDS)) {
+                 printf("There is data pending to be written...");// Send Data with send()
+
+            }
+        }
+        else {
+            printf("t is zero");
+            exit(1);
+        }
+    }
+    */
+    
+    //faccio il boot
+    int ret, sd;
+    socklen_t len;
+    struct sockaddr_in srv_addr;
+    char buffer[1024], msg[1024], tmp[10];
+    sprintf(tmp, "%d", p_port);
+    strcpy(msg, tmp);
+
+    sd = socket(AF_INET, SOCK_DGRAM | SOCK_NONBLOCK, 0);
+
+    memset(&srv_addr, 0, sizeof(srv_addr));
+    srv_addr.sin_family = AF_INET;
+    srv_addr.sin_port = htons(ds_port);
+    inet_pton(AF_INET, ds_addr, &srv_addr.sin_addr);
+
+    do
+    {
+        printf("Sono %d e invio il messaggio di boot: %s %d\n", p_port, ds_addr, ds_port);
+        ret = sendto(sd, msg, 1024, 0, (struct sockaddr *)&srv_addr, sizeof(srv_addr));
+        sleep(TIMEOUT);
+        ret = recvfrom(sd, buffer, 1024, 0, (struct sockaddr *)&srv_addr, &len);
+        //se dopo aver aspettato il timeout non ricevo riposta riinvio il messaggio
+    } while (ret < 0);
+
+    printf("Richiesta di boot accettata\n");
+
+    sscanf(buffer, "%d %s", &ret, nei_list);
+
+    close(sd);
+    return(ret);
+}
 int sendNewUDP(int port, char* msg)
 {
     return(-1);
@@ -42,7 +171,7 @@ void sendTCP(int sd, char* msg)
 int IOMultiplex(int port, 
                 bool use_udp, 
                 void (*handleCmd)(char* cmd), 
-                void (*handleUDP)(int sd, char* cmd),
+                void (*handleUDP)(int sd, char* cmd, char* answer),
                 void (*handleTCP)(int sd, char* cmd),
                 void (*handleTimeout)())
 {
@@ -124,11 +253,13 @@ int IOMultiplex(int port,
                         handleCmd(buffer);
                     }
                     else if (i == udp_socket) {
+                        char answer[1024];
+                        memset(answer, 0, 1024);
                         DEBUG_PRINT(("udp_socket: %d\n", i));
                         addrlen = sizeof(connecting_addr);
                         ret = recvfrom(i, buffer, REQ_LEN, 0, (struct sockaddr *)&connecting_addr, &addrlen);
-                        handleUDP(i, buffer);
-                        //printf("%d\t%s\n", ret, buffer);
+                        handleUDP(i, buffer, answer);
+                        sendto(i, answer, strlen(answer), 0, (struct sockaddr *)&connecting_addr, sizeof(connecting_addr));
                     }
                     else {
                         DEBUG_PRINT(("tcp_listener: %d\n", i));
@@ -175,6 +306,3 @@ int IOMultiplex(int port,
     close(tcp_listener);
     close(udp_socket);
 }
-
-
-
