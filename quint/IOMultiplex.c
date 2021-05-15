@@ -22,9 +22,6 @@ void IOMultiplex(int port,
     int ret, newfd, listener, i, boot;
     socklen_t addrlen;
     fd_set read_fds;
-    fd_set write_fds;
-
-    int fdmax;
 
     struct sockaddr_in my_addr, cl_addr;
     char buffer[1024];

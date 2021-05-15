@@ -7,10 +7,10 @@ void FileManager_salvaArchivioAggregazioni()
     FILE *fptr;
     char buffer[1024], tmp[20];
     strcpy(buffer, "./salvaArchivio");
-    sprintf(tmp, "%d", sPeer.porta);
+    sprintf(tmp, "%d", sPeer.port);
     strcat(buffer, tmp);
 
-    printf("Salvo le aggregazioni presenti nell'ArchivioAggregazioni del Peer %d\n", sPeer.porta);
+    printf("Salvo le aggregazioni presenti nell'ArchivioAggregazioni del Peer %d\n", sPeer.port);
 
     if ((fptr = fopen(buffer, "w")) == NULL)
     {
@@ -40,7 +40,7 @@ void FileManager_salvaRegistro(int ds)
     int trovato = 0, i;
     char buffer[1024], tmp[10];
     strcpy(buffer, "./salvaRegistro");
-    sprintf(tmp, "%d", sPeer.porta);
+    sprintf(tmp, "%d", sPeer.port);
     strcat(buffer, tmp);
 
     if ((fptr = fopen(buffer, "w")) == NULL)
@@ -50,8 +50,8 @@ void FileManager_salvaRegistro(int ds)
         exit(1);
     }
 
-    for(i = 0; i<NUMERO_VICINI; i++){
-        if(sPeer.vicini[i]!=0) 
+    for(i = 0; i < CVECTOR_TOTAL((sPeer.vicini)); i++){
+        if(CVECTOR_GET((sPeer.vicini), int, i)!=0) 
             trovato = 1;
     }
 
@@ -82,7 +82,7 @@ void FileManager_caricaArchivioAggregazioni()
 
     char buffer[1024], tmp[20];
     strcpy(buffer, "./salvaArchivio");
-    sprintf(tmp, "%d", sPeer.porta);
+    sprintf(tmp, "%d", sPeer.port);
     strcat(buffer, tmp);
 
     printf("Carico in memoria le aggregazioni presenti sul file %s\n", buffer);
@@ -119,7 +119,7 @@ void FileManager_caricaRegistro()
     struct RegistroGiornaliero *new;
     char buffer[1024], tmp[20];
     strcpy(buffer, "./salvaRegistro");
-    sprintf(tmp, "%d", sPeer.porta);
+    sprintf(tmp, "%d", sPeer.port);
     strcat(buffer, tmp);
 
     if ((fptr = fopen(buffer, "r")) == NULL)

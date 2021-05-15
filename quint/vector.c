@@ -24,10 +24,12 @@
     if (index >= 0 && index < v->total)\
         v->items[index] = item;
 
-#define GET_COMMON(type)\
+#define GET_COMMON(error)\
     if (index >= 0 && index < v->total)\
         return v->items[index];\
-    return type;
+    else if (index < 0 && index + v->total >= 0)\
+        return v->items[v->total + index];\
+    return error;
 
 #define DELETE_COMMON(resize_func,retval)\
     if (index < 0 || index >= v->total)\

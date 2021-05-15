@@ -214,7 +214,7 @@ int ArchivioAggregazioni_verificaPresenzaDati(int flood)
             {
                 if ((RegistroGenerale_comparaData(period1, pr->data) == 0 || RegistroGenerale_comparaData(period1, pr->data) == 1) && (RegistroGenerale_comparaData(pr->data, period2) == 0 || RegistroGenerale_comparaData(pr->data, period2) == 1))
                 {
-                    sPeer_aggiungiPeerDaContattare(sPeer.porta);
+                    sPeer_aggiungiPeerDaContattare(sPeer.port);
                     printf("Registro trovato, Peer aggiunto ai peer da contattare\n");
                     return 0;
                 }
@@ -235,7 +235,7 @@ int ArchivioAggregazioni_verificaPresenzaDati(int flood)
         if (pd)
         {
             if (flood == 1){
-                sPeer_aggiungiPeerDaContattare(sPeer.porta);
+                sPeer_aggiungiPeerDaContattare(sPeer.port);
             }    
             if (pr->completo == 1)
             {

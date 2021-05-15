@@ -1,6 +1,32 @@
+#include <arpa/inet.h>
+#include <sys/types.h>
+#include <sys/socket.h>
+#include <netinet/in.h>
+#include <string.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <unistd.h>
+#include <time.h>
 #include <stdbool.h>
 #include "IOMultiplex.h"
 #include "Include.h"
+
+#define DEBUG_ON
+
+#ifdef DEBUG_ON
+# define DEBUG_PRINT(x) printf x
+#else
+# define DEBUG_PRINT(x) do {} while (0)
+#endif
+
+void sPeer_initialize(char* port)
+{
+    sscanf(port, "%d", &sPeer.port);
+    DEBUG_PRINT(("sono peer: %d\n", sPeer.port));
+    cvector_init(&(sPeer.vicini));
+    vector_init(&(sPeer.flood_requests));
+}
+
 //funzione che stampa nel dettaglio le operazioni del peer
 void sPeer_help()
 {
@@ -15,13 +41,17 @@ void sPeer_help()
 void sPeer_serverBoot(char *ds_addr, int ds_port)
 {
     //faccio il boot
-    int ret, sd;
+    int ret, sd, num;
+    uint16_t lmsg;
     socklen_t len;
     struct sockaddr_in srv_addr;
     char buffer[BOOT_RESP];
+    char neighbors_list[1024];
     char msg[BOOT_MSG], tmp[10];
-    sprintf(tmp, "%d", sPeer.porta);
+    sprintf(tmp, "%d", sPeer.port);
     strcpy(msg, tmp);
+
+    memset(neighbors_list, 0, sizeof(neighbors_list));
 
     strcpy(sPeer.ds_ip, ds_addr);
     sPeer.ds_port = ds_port;
@@ -37,15 +67,23 @@ void sPeer_serverBoot(char *ds_addr, int ds_port)
     {
         printf("Invio il messaggio di boot\n");
         ret = sendto(sd, msg, BOOT_MSG, 0, (struct sockaddr *)&srv_addr, sizeof(srv_addr));
-        sleep(TIMEOUT);
-        ret = recvfrom(sd, buffer, BOOT_RESP, 0, (struct sockaddr *)&srv_addr, &len);
+        if (ret < 0) {
+            perror("Errore nell'invio: ");
+            exit(1);
+        }
+        sleep(TIMEOUT); // FIXUP: maybe use a select, not to block on this 
+        ret = recvfrom(sd, (void*) &lmsg, sizeof(uint16_t), 0, (struct sockaddr *)&srv_addr, &len);
         //se dopo aver aspettato il timeout non ricevo riposta riinvio il messaggio
     } while (ret < 0);
 
     printf("Richiesta di boot accettata\n");
+    len = ntohs(lmsg);
+    ret = recvfrom(sd, (void*)buffer, len, 0, (struct sockaddr *)&srv_addr, &len);
 
-    sscanf(buffer, "%d %s", &sPeer.vicini[0], &sPeer.vicini[1]);
-    printf("Vicini: %d %d\n\n", sPeer.vicini[0], sPeer.vicini[1]);
+    sscanf(buffer, "%d %s", &num, neighbors_list);
+    printf("Vicini: %d %s\n\n", num, neighbors_list);
+
+    //FIXUP: actually parse and add the new neighbor_list in the form `3 :123:234:345
 
     close(sd);
 }
@@ -59,16 +97,17 @@ int sPeer_richiestaAggregazioneNeighbor(char *aggr, char *type, char *period)
     uint16_t size_risultato_ricevuto, lmsg;
     int risultato[MAX_SIZE_RISULTATO], size_risultato;
 
-    for (i = 0; i < NUMERO_VICINI; i++)
+    for (i = 0; i < CVECTOR_TOTAL((sPeer.vicini)); i++)
     {
-        if (sPeer.vicini[i] == 0)
+        /*if (sPeer.vicini[i] == 0) // this doesn't make sense with our structure
             continue;
+            */
 
         sd = socket(AF_INET, SOCK_STREAM, 0);
 
         memset(&vicini_addr, 0, sizeof(vicini_addr));
         vicini_addr.sin_family = AF_INET;
-        vicini_addr.sin_port = htons(sPeer.vicini[i]);
+        vicini_addr.sin_port = htons((int) CVECTOR_GET((sPeer.vicini), int, i));
         inet_pton(AF_INET, "127.0.0.1", &vicini_addr.sin_addr);
 
         ret = connect(sd, (struct sockaddr *)&vicini_addr, sizeof(vicini_addr));
@@ -110,7 +149,7 @@ int sPeer_richiestaAggregazioneNeighbor(char *aggr, char *type, char *period)
             exit(-1);
         }
 
-        printf("Richiedo al neighbor %d se ha l'aggregazione\n", sPeer.vicini[i]);
+        printf("Richiedo al neighbor %d se ha l'aggregazione\n", (int) CVECTOR_GET((sPeer.vicini), int, i));
 
         ret = recv(sd, (void *)&size_risultato_ricevuto, sizeof(uint16_t), 0);
         if (ret < 0)
@@ -309,7 +348,7 @@ void sPeer_disconnessioneNetwork()
         exit(-1);
     }
 
-    lmsg = htons(sPeer.porta);
+    lmsg = htons(sPeer.port);
     ret = send(sd, (void *)&lmsg, sizeof(uint16_t), 0);
     if (ret < 0)
     {
@@ -337,11 +376,12 @@ void sPeer_stop()
     struct RegistroGiornaliero *pp;
     char buffer[1024];
 
-    for (i = 0; i < NUMERO_VICINI; i++)
+    for (i = 0; i < CVECTOR_TOTAL((sPeer.vicini)); i++)
     {
-        if (sPeer.vicini[i] != 0)
+        int i_esimo_vicino = CVECTOR_GET((sPeer.vicini), int, i);
+        if (i_esimo_vicino != 0)
         {
-            vicino = sPeer.vicini[i];
+            vicino = i_esimo_vicino;
             break;
         }
     }
@@ -422,7 +462,7 @@ void sPeer_richiestaFlood(int requester)
     struct sockaddr_in vicini_addr;
     struct DataNecessaria *pp;
     uint16_t lmsg;
-    char buffer[1024], richiesta[1024], porta[10];
+    char buffer[1024], richiesta[1024], port[10];
 
     pp = RegistroGenerale.lista_date_necessarie;
     if (pp == 0)
@@ -433,15 +473,16 @@ void sPeer_richiestaFlood(int requester)
 
     sprintf(richiesta, "%s", sPeer.richiesta_id);
     strcat(richiesta, " ");
-    sprintf(porta, "%d", sPeer.porta);
-    strcat(richiesta, porta);
+    sprintf(port, "%d", sPeer.port);
+    strcat(richiesta, port);
 
     //in richiesta è presente l'id della richiesta più il peer che sta inoltrando tale richiesta
-    //l'id di una richiesta è formata dalla stringa contenente la porta del peer che ha fatto la richiesta e il numero sequenziale della richiesta
+    //l'id di una richiesta è formata dalla stringa contenente la port del peer che ha fatto la richiesta e il numero sequenziale della richiesta
 
-    for (i = 0; i < NUMERO_VICINI; i++)
+    for (i = 0; i < CVECTOR_TOTAL((sPeer.vicini)); i++)
     {
-        if (requester == sPeer.vicini[i] || sPeer.vicini[i] == 0)
+        int i_esimo_vicino = CVECTOR_GET((sPeer.vicini), int, i);
+        if (requester == i_esimo_vicino || i_esimo_vicino == 0)
             continue; //non inoltro la richiesta a chi l'ha inoltrata a me anche se è un mio vicino
         //i vicini == 0 non sono vicini reali
 
@@ -451,10 +492,10 @@ void sPeer_richiestaFlood(int requester)
 
         memset(&vicini_addr, 0, sizeof(vicini_addr));
         vicini_addr.sin_family = AF_INET;
-        vicini_addr.sin_port = htons(sPeer.vicini[i]);
+        vicini_addr.sin_port = htons(i_esimo_vicino);
         inet_pton(AF_INET, "127.0.0.1", &vicini_addr.sin_addr);
 
-        printf("Inoltro la richiesta di Flood al peer %d\n", sPeer.vicini[i]);
+        printf("Inoltro la richiesta di Flood al peer %d\n", i_esimo_vicino);
 
         ret = connect(sd, (struct sockaddr *)&vicini_addr, sizeof(vicini_addr));
         if (ret < 0)
@@ -572,7 +613,7 @@ void sPeer_ricezioneRispostaFlood(int sd)
     {
         sPeer.richiesta_in_gestione = 0;
         printf("Ho ricevuto tutte le risposte che mi servivano\n\n");
-        if (sPeer.porta == sPeer.requester) //se la mia porta è uguale al requester significa che io sono chi ha fatto la richiesta
+        if (sPeer.port == sPeer.requester) //se la mia port è uguale al requester significa che io sono chi ha fatto la richiesta
                                                           //in origine se non è così devo inviare la risposta a chi mi ha inoltrato la richiesta
             sPeer_richiestaRegistri();
         else
@@ -587,8 +628,8 @@ void sPeer_sendFlood()
     int i;
     //imposto la reichiesta_id
     printf("Inizializzo una richiesta di Flood\n");
-    sPeer.requester = sPeer.porta;
-    sprintf(buffer, "%d", sPeer.porta);
+    sPeer.requester = sPeer.port;
+    sprintf(buffer, "%d", sPeer.port);
     strcat(buffer, " ");
     sprintf(numero_richiesta, "%d", sPeer.richieste_inviate);
     strcat(buffer, numero_richiesta);
@@ -829,7 +870,8 @@ void sPeer_menu()
         printf("Opzione non valida\n\n");
     }
 
-    printf(">> ");
+    printf("\n>> ");
+    fflush(stdout);
 }
 
 //funzone che gestisce l'arrivo di una richiesta di registri
@@ -856,7 +898,7 @@ void sPeer_gestisciNuoviVicini(int sd)
         perror("Errore in fase di invio: ");
         exit(1);
     }
-    sscanf(buffer, "%d %s", &num, &neighbors);
+    sscanf(buffer, "%d %s", &num, neighbors);
     close(sd);
     FD_CLR(sd, &iom.master);
     printf("Mi sono sono stati comunicati nuovi vicini: %d %s\n\n", num, neighbors);
@@ -909,12 +951,13 @@ void emptyFunc(int boot)
 
 int main(int argc, char *argv[])
 {
-    sscanf(argv[1], "%d", &sPeer.porta);
-    cvector_init(&(sPeer.vicini));
+    sPeer_initialize(argv[1]);
     FileManager_caricaRegistro();
     FileManager_caricaArchivioAggregazioni();
 
     sPeer_help();
-    IOMultiplex(sPeer.porta, &iom, false, sPeer_menu, emptyFunc, sPeer_handleTCP);    
+    printf("\n>> ");
+    fflush(stdout);
+    IOMultiplex(sPeer.port, &iom, false, sPeer_menu, emptyFunc, sPeer_handleTCP);    
     return 0;
 }

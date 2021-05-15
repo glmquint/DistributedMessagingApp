@@ -15,7 +15,6 @@
 #define BOOT_MSG 6            /*"10000\0"*/
 #define BOOT_RESP 12           /*"10001 10002\0"*/
 #define MAX_SIZE_RISULTATO 100 /*definisce la dimesione massima dellarray del risultato delle Aggregazioni*/
-#define NUMERO_VICINI 2
 
 #define REQAG_LEN 50 
 #define MAX_PEER_DA_CONTATTARE 100
@@ -35,39 +34,40 @@ void FileManager_caricaArchivioAggregazioni();
 void FileManager_caricaRegistro();
 
 
-
-
-
 struct sPeer
 {
-    int requester;
+    int port;
+    int requester; // FIXUP: il nuovo proc può tenere traccia da sé di chi ha fatto la richiesta di flood,
+                    // per di più non ha bisogno di chiuderne il socket, quindi forse è un'informazione ridondante
     int sd_flood;
     int richieste_inviate;
     char richiesta_id[20];
     int richiesta_in_gestione; // FIXUP: shouldn't need this if we use another proc
                                 // also, seems we need to implement multi request handling
-    int risposte_mancanti;
+    vector flood_requests; // (str)id: initiator_peer.port (+) request_timestamp
+    int risposte_mancanti; // il nuovo proc può tenere traccia da sé di quante risposte mancono alla
+                            // richiesta in gestione tramite una variabile globale
     
     cvector vicini;
-    int porta;
     int peer_da_contattare[MAX_PEER_DA_CONTATTARE];
     int numero_peer_da_contattare;
     int ds_port;
     char ds_ip[20];
 } sPeer;
 
+int sPeer_richiestaAggregazioneNeighbor(char *aggr, char *type, char *period);
+void sPeer_aggiungiPeerDaContattare(int peer);
+void sPeer_sendFlood();
+
 /* FIXUP: no need to expose peer methods. Just define 'em in peer.c definition
 void sPeer_help();
 void sPeer_serverBoot(char *ds_addr, int ds_port);
-int sPeer_richiestaAggregazioneNeighbor(char *aggr, char *type, char *period);
 void sPeer_gestioneRichiestaAggregazione(int sd);
 void sPeer_richiestaRegistri();
 void sPeer_stop();
-void sPeer_aggiungiPeerDaContattare(int peer);
 void sPeer_richiestaFlood(int requester);
 void sPeer_invioRispostaFlood();
 void sPeer_ricezioneRispostaFlood(int sd);
-void sPeer_sendFlood();
 int sPeer_verificaRichiestaRicevuta(char richiesta_id[50], int sd);
 void sPeer_gestioneFlood(int sd);
 void sPeer_menu();

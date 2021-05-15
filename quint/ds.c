@@ -11,6 +11,15 @@
 #include "vector.h"
 #include "IOMultiplex.h"
 
+#define DEBUG_ON
+
+#ifdef DEBUG_ON
+# define DEBUG_PRINT(x) printf x
+#else
+# define DEBUG_PRINT(x) do {} while (0)
+#endif
+
+
 #define STDIN 0
 #define BOOT_MSG 6  //"10000\0"
 #define BOOT_RESP 12 //"10001 10002\0"
@@ -22,6 +31,7 @@ fd_set master;
 //
 // DS should have a vector PeerRegister of PeerRecord,
 // each one with its own int port and cvector of neighbors
+/*
 struct Peer
 {
     int porta;
@@ -39,11 +49,36 @@ struct DiscoveryServer
 {
     int portaserver;
 } DiscoveryServer;
+*/
+
+struct DiscoveryServer {
+    int port;
+}DiscoveryServer;
+
+struct PeerRecord {
+    int port;
+    cvector neighbors;
+};
+
+struct PeerRegister {
+    vector peers;
+} peerRegister;
+
+
+
+void Ds_initialize(char* port)
+{
+    sscanf(port, "%d", &DiscoveryServer.port);
+    DEBUG_PRINT(("sono DiscoveryServer: %d\n", DiscoveryServer.port));
+    vector_init(&(peerRegister.peers));
+}
+
 
 //funzione che imposta la stringa RegistroPeer.boot_vicini con i vicini del peer passato come parametro
 //l'implementazione della funzione stabilisce la topologie della rete
 void Ds_restituisciVicini(int porta)
 {
+    /*
     struct Peer *pp, *prevp;
     int porta1, porta2;
 
@@ -73,6 +108,7 @@ void Ds_restituisciVicini(int porta)
     //una volta trovate le 2 porte più vicine le restituisco come stringa
     printf("Vicini impostati: %d %d\n\n", porta1, porta2);
     sprintf(RegistroPeer.boot_vicini, "%d %d", porta1, porta2);
+    */
 }
 
 //funzione che stampa nel dettaglio le operazioni del Ds
@@ -84,56 +120,37 @@ void Ds_help()
     printf("esc --> termina  il  DS. La terminazione del DS causa la terminazione di tutti i peer. Opzionalmente, prima di chiudersi, i peerpossono salvare le loro informazioni su un file, ricaricato nel momento in cui un peer torna a far parte del network (esegue il boot).\n\n");
 }
 
+
+//FIXUP: refactor with showneighbors(int, bool)
 //funzione che mostra la lista di tutti i peer connessi
 void Ds_showpeers()
 {
-    struct Peer *pp;
-
-    pp = RegistroPeer.lista_peer;
-    printf("Questi sono i peer del network: \n\n");
-    while (pp != 0)
-    {
-        printf("%d\n", pp->porta);
-        pp = pp->next_peer;
-        if (pp->porta == RegistroPeer.lista_peer->porta)
-            break;
+    printf("Questi sono i peers della rete:\n");
+    for (int i = 0; i < VECTOR_TOTAL((peerRegister.peers)); i++) {
+        struct PeerRecord* peer_r = VECTOR_GET((peerRegister.peers), struct PeerRecord*, i);
+        printf("[%d]: %d\n", i, peer_r->port);
     }
-    printf("\n");
+
 }
 
-//funzione che mosta la lista dei vicini del peer passato come parametro, se il parametro è 0 viene mostrata la lista dei vicini di tutti i peer connessi
+//funzione che mosta la lista dei vicini del peer passato come parametro, se il parametro è < 0 viene mostrata la lista dei vicini di tutti i peer connessi
 void Ds_showneighbor(int peer)
 {
-    char buffer[12];
-    if (peer)
-    {
-        Ds_restituisciVicini(peer); //questa funzione scrive in RegistroPeer.boot_vicini i vicini del peer passato come parametro
-        strcpy(buffer, RegistroPeer.boot_vicini);
-        printf("Questi sono i vicini del peer: %s\n\n", buffer);
-    }
-    else
-    {
-        //mi scorro tutta la lista dei peer e per ogni peer chiamo la funzione che me ne restituisce i vicini
-        struct Peer *pp;
-
-        pp = RegistroPeer.lista_peer;
-        printf("Questa è la lista dei peer e dei loro vicini: \n\n");
-        while (pp != 0)
-        {
-            Ds_restituisciVicini(pp->porta);
-            strcpy(buffer, RegistroPeer.boot_vicini);
-            printf("%d: %s\n", pp->porta, buffer);
-            pp = pp->next_peer;
-            if (pp->porta == RegistroPeer.lista_peer->porta)
-                break;
+    for (int i = 0; i < VECTOR_TOTAL((peerRegister.peers)); i++) {
+        struct PeerRecord* peer_r = VECTOR_GET((peerRegister.peers), struct PeerRecord*, i);
+        if (peer < 0 || peer == peer_r->port) {
+            printf("\nshowing peer: %d\nHis neighbors are:\n", peer_r->port);
+            for (int j = 0; j < CVECTOR_TOTAL((peer_r->neighbors)); j++) {
+                printf("[%d] %d\n", j, CVECTOR_GET((peer_r->neighbors), int, j));
+            }
         }
-        printf("\n");
     }
 }
 
 //funzione che invia a tutti i peer della rete il messagio DSTOP e che fa terminare il Ds
 void Ds_esc()
 {
+    /*
     int sd, ret, i = 0;
     struct sockaddr_in peer_addr;
     struct Peer *pp;
@@ -167,7 +184,9 @@ void Ds_esc()
         pp = pp->next_peer;
         close(sd);
     } 
-    exit(0);
+    */
+    DEBUG_PRINT(("Goodbye!!\n"));
+    exit(0);    
 }
 
 //funzione che stabilisce le funzioni da chiamare in base all'input dell'utente
@@ -192,7 +211,7 @@ void Ds_menu()
         if(sscanf(buffer, "%s %d", tmp, &peer) == 2)
             Ds_showneighbor(peer);
         else
-            Ds_showneighbor(0);    
+            Ds_showneighbor(-1);    
     }
     else if (strcmp("esc", tmp) == 0)
     {
@@ -202,11 +221,15 @@ void Ds_menu()
     {
         printf("Opzione non valida\n\n");
     }
+    printf("\n>> ");
+    fflush(stdout);
 }
 
+//FIXUP: delete this as we shouldn't need it. It's all handled by
 //funzione che aggiunge un peer alla lista circolare dei peer ordinata per numero di porta
 void Ds_aggiungiPeer(int porta)
 {
+    /*
     struct Peer *new_peer = malloc(sizeof(struct Peer));
     new_peer->porta = porta;
 
@@ -253,11 +276,14 @@ void Ds_aggiungiPeer(int porta)
     prevp->next_peer = RegistroPeer.lista_peer;
     RegistroPeer.numero_peer++;
     printf("Peer %d aggiunto correttamente alla lista dei peer connessi\n", porta);
+    */
 }
 
+//FIXUP: delete this as we shouldn't need it. It's all handled by
 //funzione che rimuove un peer dalla lista dei peer
 void Ds_rimuoviPeer(int porta)
 {
+    /*
     struct Peer *pp, *prevp;
 
     printf("Rimuovo il peer %d dalla lista dei peer\n", porta);
@@ -294,16 +320,19 @@ void Ds_rimuoviPeer(int porta)
     if(prevp) prevp->next_peer = RegistroPeer.lista_peer;
 
     RegistroPeer.numero_peer--;
+    */
 }
 
-//funzione che comunica al peer passato come parametro i suoi nuovi vicini
-void Ds_comunicaNuoviVicini(int peer)
+//FIXUP: TODO
+void sendNeighborsUpdate(int peer, cvector new_neighbors)
 {
+    /*
     int ret, sd;
     struct sockaddr_in peer_addr;
     char buffer[1024];
+    memset(buffer, 0, sizeof(buffer));
 
-    if (peer == 0)
+    if (peer <= 0)
         return;
 
     sd = socket(AF_INET, SOCK_STREAM, 0);
@@ -320,7 +349,7 @@ void Ds_comunicaNuoviVicini(int peer)
         exit(-1);
     }
 
-    strcpy(buffer, "UPDVI");
+    strcpy(buffer, "UPDNEI");
 
     ret = send(sd, (void *)buffer, REQ_LEN, 0);
     if (ret < 0)
@@ -329,7 +358,6 @@ void Ds_comunicaNuoviVicini(int peer)
         exit(1);
     }
 
-    Ds_restituisciVicini(peer);
     strcpy(buffer, RegistroPeer.boot_vicini);
 
     printf("Comunico al peer %d i suoi nuovi vicini\n\n", peer);
@@ -339,16 +367,26 @@ void Ds_comunicaNuoviVicini(int peer)
         perror("Errore in fase di invio: ");
         exit(1);
     }
+    */
 }
+
+
 
 //funzione che gestisce il boot di un peer
 void Ds_peerRegistration(int sd)
 {
-    int ret, porta, porta1, porta2;
+    int ret, new_peer_port, peers_num, len;
+    uint16_t lmsg;
     socklen_t addrlen;
     char buffer[1024];
     struct sockaddr_in connecting_addr;
 
+    struct PeerRecord* newPeer;
+    char answer[1024];
+    char neighbors_list[1000];
+    memset(answer, 0, sizeof(answer));
+    memset(neighbors_list, 0, sizeof(neighbors_list));
+    
     addrlen = sizeof(connecting_addr);
     ret = recvfrom(sd, buffer, BOOT_MSG, 0, (struct sockaddr *)&connecting_addr, &addrlen);
     if (ret < 0)
@@ -356,10 +394,61 @@ void Ds_peerRegistration(int sd)
         perror("Errore nella ricezione: ");
         exit(1);
     }
-    sscanf(buffer, "%d", &porta);
-    printf("Gestisco il boot del peer %d\n", porta);
-    Ds_aggiungiPeer(porta);
-    Ds_restituisciVicini(porta);
+    sscanf(buffer, "%d", &new_peer_port);
+    printf("Gestisco il boot del peer %d\n", new_peer_port);
+
+    peers_num = VECTOR_TOTAL((peerRegister.peers));
+
+    newPeer = (struct PeerRecord*) malloc(sizeof(struct PeerRecord));
+    newPeer->port = new_peer_port;
+    cvector_init(&(newPeer->neighbors));
+    if (peers_num == 0) {
+        strcpy(answer, "0 :)"); // the string part is useless
+        DEBUG_PRINT(("no peers yet, you are the first! sending: %s\n", answer));
+    } else {
+        // zukunfty algoritm
+        int new_connections = 0;
+        int i = 1;
+        while (peers_num % i == 0) {
+            char* nei_port = malloc(4);
+            struct PeerRecord* neighbor =  VECTOR_GET((peerRegister.peers), struct PeerRecord*, peers_num - i);
+            DEBUG_PRINT(("new neighbor to add: %d\n", neighbor->port));
+            CVECTOR_ADD((newPeer->neighbors), neighbor->port);
+
+            sprintf(nei_port, "%d", neighbor->port);
+            strcat(strcat(neighbors_list, ":"), nei_port);
+            free(nei_port);
+            DEBUG_PRINT(("now neighbors_list is: %s\n", neighbors_list));
+
+            // and vice versa
+            DEBUG_PRINT(("and %d should update to include: %d\n", neighbor->port, new_peer_port));
+            CVECTOR_ADD((neighbor->neighbors), new_peer_port);
+            sendNeighborsUpdate(neighbor->port, neighbor->neighbors);
+
+            new_connections++;
+            i *= 2;
+        }
+        sprintf(answer, "%d %s", new_connections, neighbors_list);
+        DEBUG_PRINT(("done with new neighbors\n\n"));
+    }
+    VECTOR_ADD((peerRegister.peers), newPeer);
+    len = strlen(answer);
+    lmsg = htons(len);
+    ret = sendto(sd, (void*) &lmsg, sizeof(uint16_t), 0, (struct sockaddr *)&connecting_addr, sizeof(connecting_addr));
+    if (ret < 0)
+    {
+        perror("Errore nell'invio: ");
+        exit(1);
+    }
+    ret = sendto(sd, (void*) &lmsg, sizeof(uint16_t), 0, (struct sockaddr *)&connecting_addr, sizeof(connecting_addr));
+    if (ret < 0)
+    {
+        perror("Errore nell'invio: ");
+        exit(1);
+    }
+    /*
+    Ds_aggiungiPeer(new_peer_port);
+    Ds_restituisciVicini(new_peer_port);
     strcpy(buffer, RegistroPeer.boot_vicini);
 
     ret = sendto(sd, buffer, BOOT_RESP, 0, (struct sockaddr *)&connecting_addr, sizeof(connecting_addr));
@@ -369,16 +458,18 @@ void Ds_peerRegistration(int sd)
         exit(1);
     }
 
-    sscanf(buffer, "%d %d", &porta1, &porta2);
-    Ds_comunicaNuoviVicini(porta1);
-    Ds_comunicaNuoviVicini(porta2);
+    sscanf(buffer, "%d %d", &new_peer_port1, &new_peer_port2);
+    Ds_comunicaNuoviVicini(new_peer_port1);
+    Ds_comunicaNuoviVicini(new_peer_port2);
+    */
 }
 
 //funzione che gestisce la disconnessione da parte di un peer
-void Ds_gestioneDisconnessione(int sd)
+void Ds_handleDisconnectReq(int sd)
 {
-    int ret, peer, peer1, peer2;
+    int ret, peer;
     uint16_t lmsg;
+    struct PeerRecord* last_peer;
 
     ret = recv(sd, (void *)&lmsg, sizeof(uint16_t), 0);
     if (ret < 0)
@@ -389,11 +480,22 @@ void Ds_gestioneDisconnessione(int sd)
 
     peer = ntohs(lmsg);
     printf("Gestisco la disconnessione del peer %d\n", peer);
+
+    DEBUG_PRINT(("This is a description of the traitor:\n"));
+    Ds_showneighbor(peer);
+    last_peer = (struct PeerRecord*) VECTOR_GET((peerRegister.peers), void*, -1);
+    DEBUG_PRINT(("He is gonna be replaced by:\n"));
+    Ds_showneighbor(last_peer->port);
+
+    //FIXUP: actually change peerRegister with new neighborhood, whith last_peer shift, as per the zukunfty algoritm
+
+    /*
     Ds_restituisciVicini(peer);
     sscanf(RegistroPeer.boot_vicini, "%d %d", &peer1, &peer2);
     Ds_rimuoviPeer(peer);
     Ds_comunicaNuoviVicini(peer1);
     Ds_comunicaNuoviVicini(peer2);
+    */
 
     close(sd);
     FD_CLR(sd, &master);
@@ -402,33 +504,19 @@ void Ds_gestioneDisconnessione(int sd)
 void DS_handleTCP(char* buffer, int sd)
 {
     if (strcmp(buffer, "RSTOP") == 0) //messaggio di disconnessione da parte di un peer
-        Ds_gestioneDisconnessione(sd);
+        Ds_handleDisconnectReq(sd);
     else
         printf("Ricevuto messaggio non valido\n");
 }
-
-void DS_handleUDP(int boot)
-{
-    Ds_peerRegistration(boot);
-}
-
-void DS_handleSTDIN()
-{
-    Ds_menu();
-}
-
 
 
 //main del Ds
 int main(int argc, char *argv[])
 {
-    sscanf(argv[1], "%d", &DiscoveryServer.portaserver);
-    printf("******************** DS COVID STARTED ********************\n");
-    printf("Digita un comando:\n\n");
-    printf("1) help --> mostra i dettagli dei comandi\n");
-    printf("2) showpeers --> mostra un elenco dei peer connessi\n");
-    printf("3) showneighbor <peer> --> mostra i neighbor di un peer\n");
-    printf("4) esc --> chiude il DS\n\n");
-    IOMultiplex(DiscoveryServer.portaserver, &iom, true, DS_handleSTDIN, DS_handleUDP, DS_handleTCP);
+    Ds_initialize(argv[1]);
+    Ds_help();
+    printf("\n>> ");
+    fflush(stdout);
+    IOMultiplex(DiscoveryServer.port, &iom, true, Ds_menu, Ds_peerRegistration, DS_handleTCP);
     return 0;
 }
