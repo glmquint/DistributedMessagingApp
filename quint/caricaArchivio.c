@@ -4,6 +4,7 @@
 
 struct Aggregazione *lista = 0;
 
+// FIXUP: refactor with definition in FileManager
 void FileManager_salvaArchivioAggregazioni(int porta)
 {
     struct Aggregazione *pp;

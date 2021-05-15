@@ -2,6 +2,7 @@
 
 struct RegistroGiornaliero *lista;
 
+// FIXUP: refactor with definition in FileManager
 void FileManager_salvaRegistro(int porta)
 {
 

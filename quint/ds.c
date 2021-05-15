@@ -7,6 +7,9 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include <time.h>
+#include <stdbool.h>
+#include "vector.h"
+#include "IOMultiplex.h"
 
 #define STDIN 0
 #define BOOT_MSG 6  //"10000\0"
@@ -15,6 +18,10 @@
 
 fd_set master;
 
+// FIXUP: change structures to include vector and cvector
+//
+// DS should have a vector PeerRegister of PeerRecord,
+// each one with its own int port and cvector of neighbors
 struct Peer
 {
     int porta;
@@ -28,10 +35,10 @@ struct RegistroPeer
     char boot_vicini[BOOT_RESP];
 } RegistroPeer;
 
-struct IOController
+struct DiscoveryServer
 {
     int portaserver;
-} IOController;
+} DiscoveryServer;
 
 //funzione che imposta la stringa RegistroPeer.boot_vicini con i vicini del peer passato come parametro
 //l'implementazione della funzione stabilisce la topologie della rete
@@ -313,7 +320,7 @@ void Ds_comunicaNuoviVicini(int peer)
         exit(-1);
     }
 
-    strcpy(buffer, "REQVI");
+    strcpy(buffer, "UPDVI");
 
     ret = send(sd, (void *)buffer, REQ_LEN, 0);
     if (ret < 0)
@@ -392,113 +399,36 @@ void Ds_gestioneDisconnessione(int sd)
     FD_CLR(sd, &master);
 }
 
-//funzione che gestice l'IO del Ds ovvero si occupa di gestire le varie comunicazioni tra i suoi peer e l'input per mezzo della funzione select
-void Ds_gestisciIO()
+void DS_handleTCP(char* buffer, int sd)
 {
-
-    int ret, newfd, listener, i, boot;
-    socklen_t addrlen;
-    fd_set read_fds;
-    fd_set write_fds;
-
-    int fdmax;
-
-    struct sockaddr_in my_addr, cl_addr;
-    char buffer[1024];
-
-    listener = socket(AF_INET, SOCK_STREAM, 0);
-    boot = socket(AF_INET, SOCK_DGRAM, 0);
-
-    memset(&my_addr, 0, sizeof(my_addr));
-    my_addr.sin_family = AF_INET;
-    my_addr.sin_port = htons(IOController.portaserver);
-    my_addr.sin_addr.s_addr = INADDR_ANY;
-
-    ret = bind(listener, (struct sockaddr *)&my_addr, sizeof(my_addr));
-    if (ret < 0)
-    {
-        perror("Bind non riuscita1\n");
-        exit(0);
-    }
-
-    ret = bind(boot, (struct sockaddr *)&my_addr, sizeof(my_addr));
-    if (ret < 0)
-    {
-        perror("Bind non riuscita2\n");
-        exit(0);
-    }
-
-    listen(listener, 10);
-
-    FD_ZERO(&master);
-    FD_ZERO(&read_fds);
-    FD_ZERO(&write_fds);
-
-    FD_SET(listener, &master);
-    FD_SET(boot, &master);
-    FD_SET(STDIN, &master);
-
-    if (listener > boot)
-        fdmax = listener;
+    if (strcmp(buffer, "RSTOP") == 0) //messaggio di disconnessione da parte di un peer
+        Ds_gestioneDisconnessione(sd);
     else
-        fdmax = boot;
-
-    while (1)
-    {
-        read_fds = master;
-        select(fdmax + 1, &read_fds, NULL, NULL, NULL);
-
-        for (i = 0; i <= fdmax; i++)
-        {
-            if (FD_ISSET(i, &read_fds))
-            {
-                if (i == listener)
-                {
-                    addrlen = sizeof(cl_addr);
-                    newfd = accept(listener, (struct sockaddr *)&cl_addr, &addrlen);
-                    FD_SET(newfd, &master);
-                    if (newfd > fdmax)
-                        fdmax = newfd;
-                }
-                else if (i == STDIN)
-                {
-                    Ds_menu();
-                }
-                else if (i == boot)
-                {
-                    Ds_peerRegistration(boot);
-                }
-                else
-                {
-                    ret = recv(i, (void *)buffer, REQ_LEN, 0);
-                    if (ret < 0)
-                    {
-                        perror("Errore in fase di ricezione1: ");
-                        exit(1);
-                    }
-
-                    if (strcmp(buffer, "RSTOP") == 0) //messaggio di disconnessione da parte di un peer
-                        Ds_gestioneDisconnessione(i);
-                    else
-                        printf("Ricevuto messaggio non valido\n");
-                }
-            }
-        }
-    }
-
-    close(listener);
+        printf("Ricevuto messaggio non valido\n");
 }
+
+void DS_handleUDP(int boot)
+{
+    Ds_peerRegistration(boot);
+}
+
+void DS_handleSTDIN()
+{
+    Ds_menu();
+}
+
+
 
 //main del Ds
 int main(int argc, char *argv[])
 {
-    sscanf(argv[1], "%d", &IOController.portaserver);
+    sscanf(argv[1], "%d", &DiscoveryServer.portaserver);
     printf("******************** DS COVID STARTED ********************\n");
     printf("Digita un comando:\n\n");
     printf("1) help --> mostra i dettagli dei comandi\n");
     printf("2) showpeers --> mostra un elenco dei peer connessi\n");
     printf("3) showneighbor <peer> --> mostra i neighbor di un peer\n");
     printf("4) esc --> chiude il DS\n\n");
-    Ds_gestisciIO();
+    IOMultiplex(DiscoveryServer.portaserver, &iom, true, DS_handleSTDIN, DS_handleUDP, DS_handleTCP);
     return 0;
 }

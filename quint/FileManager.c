@@ -7,10 +7,10 @@ void FileManager_salvaArchivioAggregazioni()
     FILE *fptr;
     char buffer[1024], tmp[20];
     strcpy(buffer, "./salvaArchivio");
-    sprintf(tmp, "%d", IOController.porta);
+    sprintf(tmp, "%d", sPeer.porta);
     strcat(buffer, tmp);
 
-    printf("Salvo le aggregazioni presenti nell'ArchivioAggregazioni del Peer %d\n", IOController.porta);
+    printf("Salvo le aggregazioni presenti nell'ArchivioAggregazioni del Peer %d\n", sPeer.porta);
 
     if ((fptr = fopen(buffer, "w")) == NULL)
     {
@@ -40,7 +40,7 @@ void FileManager_salvaRegistro(int ds)
     int trovato = 0, i;
     char buffer[1024], tmp[10];
     strcpy(buffer, "./salvaRegistro");
-    sprintf(tmp, "%d", IOController.porta);
+    sprintf(tmp, "%d", sPeer.porta);
     strcat(buffer, tmp);
 
     if ((fptr = fopen(buffer, "w")) == NULL)
@@ -51,7 +51,7 @@ void FileManager_salvaRegistro(int ds)
     }
 
     for(i = 0; i<NUMERO_VICINI; i++){
-        if(IOController.vicini[i]!=0) 
+        if(sPeer.vicini[i]!=0) 
             trovato = 1;
     }
 
@@ -77,12 +77,12 @@ void FileManager_caricaArchivioAggregazioni()
 
     struct Aggregazione *ultima_aggregazione;
     struct Aggregazione pp;
-    struct Aggregazione *new;
+    struct Aggregazione *new_aggr;
     FILE *fptr;
 
     char buffer[1024], tmp[20];
     strcpy(buffer, "./salvaArchivio");
-    sprintf(tmp, "%d", IOController.porta);
+    sprintf(tmp, "%d", sPeer.porta);
     strcat(buffer, tmp);
 
     printf("Carico in memoria le aggregazioni presenti sul file %s\n", buffer);
@@ -98,14 +98,14 @@ void FileManager_caricaArchivioAggregazioni()
     
     while (fread(&pp, sizeof(struct Aggregazione), 1, fptr))
     {
-        new = malloc(sizeof(struct Aggregazione));
-        *new = pp;
+        new_aggr = malloc(sizeof(struct Aggregazione));
+        *new_aggr = pp;
         if (ArchivioAggregazioni.lista_aggregazioni == 0)
-            ArchivioAggregazioni.lista_aggregazioni = new;
+            ArchivioAggregazioni.lista_aggregazioni = new_aggr;
         if (ultima_aggregazione)
-            ultima_aggregazione->next_aggregazione = new;
+            ultima_aggregazione->next_aggregazione = new_aggr;
 
-        ultima_aggregazione = new;
+        ultima_aggregazione = new_aggr;
     }
 
     fclose(fptr);
@@ -119,12 +119,12 @@ void FileManager_caricaRegistro()
     struct RegistroGiornaliero *new;
     char buffer[1024], tmp[20];
     strcpy(buffer, "./salvaRegistro");
-    sprintf(tmp, "%d", IOController.porta);
+    sprintf(tmp, "%d", sPeer.porta);
     strcat(buffer, tmp);
 
     if ((fptr = fopen(buffer, "r")) == NULL)
     {
-        printf("Error! opening file");
+        perror("Error! opening file");
 
         // Program exits if the file pointer returns NULL.
         exit(1);

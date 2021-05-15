@@ -1,4 +1,6 @@
 #include "Include.h"
+/* Database che racchiude e gestisce le entry di nuovi casi/tamponi inseriti dai peer */
+
 //funzione che compara le due date passate come parametro 
 //ritorna 0 se le due date passate come parametro sono uguali, ritorna 1 se la seconda è maggiore della prima altrimenti torna -1
 int RegistroGenerale_comparaData(struct tm prima_data, struct tm seconda_data)

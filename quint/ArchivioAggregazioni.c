@@ -214,7 +214,7 @@ int ArchivioAggregazioni_verificaPresenzaDati(int flood)
             {
                 if ((RegistroGenerale_comparaData(period1, pr->data) == 0 || RegistroGenerale_comparaData(period1, pr->data) == 1) && (RegistroGenerale_comparaData(pr->data, period2) == 0 || RegistroGenerale_comparaData(pr->data, period2) == 1))
                 {
-                    IOController_aggiungiPeerDaContattare(IOController.porta);
+                    sPeer_aggiungiPeerDaContattare(sPeer.porta);
                     printf("Registro trovato, Peer aggiunto ai peer da contattare\n");
                     return 0;
                 }
@@ -235,7 +235,7 @@ int ArchivioAggregazioni_verificaPresenzaDati(int flood)
         if (pd)
         {
             if (flood == 1){
-                IOController_aggiungiPeerDaContattare(IOController.porta);
+                sPeer_aggiungiPeerDaContattare(sPeer.porta);
             }    
             if (pr->completo == 1)
             {
@@ -271,7 +271,7 @@ void ArchivioAggregazioni_precalcoloAggregazione(char *aggr, char *type, char *p
     {
         printf("Il peer NON HA tutte le date necessarie per calcolare l'aggregazione\n");
         printf("Inoltro richiesta ai neighbor per l'aggregazione\n");
-        if (IOController_richiestaAggregazioneNeighbor(aggr, type, period))
+        if (sPeer_richiestaAggregazioneNeighbor(aggr, type, period))
         {
             return; //se i miei vicini mi passano l'aggregazione l'aggiungo all'ArchivioAggregazioni e la stampo
         }
@@ -281,7 +281,7 @@ void ArchivioAggregazioni_precalcoloAggregazione(char *aggr, char *type, char *p
             strcpy(ArchivioAggregazioni.aggr, aggr);
             strcpy(ArchivioAggregazioni.type, type);
             strcpy(ArchivioAggregazioni.period, period);
-            IOController_sendFlood(); //setta la variabile IOController.peer_da_contattare
+            sPeer_sendFlood(); //setta la variabile sPeer.peer_da_contattare
         }
     }
 }
