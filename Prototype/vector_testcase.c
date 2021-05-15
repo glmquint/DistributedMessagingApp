@@ -1,7 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-#include "../vector.h"
+#include "vector.h"
 
 int main(void)
 {
@@ -38,29 +38,33 @@ int main(void)
     CVECTOR_ADD(cv, 13);
     CVECTOR_ADD(cv, 14);
     CVECTOR_ADD(cv, 15);
-    CVECTOR_ADD(cv, 13);
-    CVECTOR_ADD(cv, 13);
-    CVECTOR_ADD(cv, 13);
-    CVECTOR_ADD(cv, 13);
-    CVECTOR_ADD(cv, 13);
-    CVECTOR_ADD(cv, 13);
-    CVECTOR_ADD(cv, 14);
-    CVECTOR_ADD(cv, 15);
-    CVECTOR_ADD(cv, 14);
-    CVECTOR_ADD(cv, 15);
-    CVECTOR_ADD(cv, 14);
-    CVECTOR_ADD(cv, 15);
-    CVECTOR_ADD(cv, 14);
-    CVECTOR_ADD(cv, 15);
-    CVECTOR_ADD(cv, 14);
-    CVECTOR_ADD(cv, 15);
-    CVECTOR_ADD(cv, 14);
-    CVECTOR_ADD(cv, 15);
+    CVECTOR_ADD(cv, 16);
+    CVECTOR_ADD(cv, 17);
+    CVECTOR_ADD(cv, 18);
+    CVECTOR_ADD(cv, 19);
+    CVECTOR_ADD(cv, 20);
+    CVECTOR_ADD(cv, 21);
+    CVECTOR_ADD(cv, 22);
+    CVECTOR_ADD(cv, 23);
+    CVECTOR_ADD(cv, 24);
+    CVECTOR_ADD(cv, 25);
+    CVECTOR_ADD(cv, 26);
+    CVECTOR_ADD(cv, 27);
+    CVECTOR_ADD(cv, 28);
+    CVECTOR_ADD(cv, 29);
+    CVECTOR_ADD(cv, 30);
+    CVECTOR_ADD(cv, 31);
+    CVECTOR_ADD(cv, 32);
+    CVECTOR_ADD(cv, 33);
 
     CVECTOR_DELETE(cv, 1);
 
     for (i = 0; i < CVECTOR_TOTAL(cv); i++)
-        printf("%d ", CVECTOR_GET(cv, int, i+1));
+        printf("%d) %d\n", i, CVECTOR_GET(cv, int, i));
+    printf("\n");
+
+    for (i = (-1 * CVECTOR_TOTAL(cv)); i < 0; i++)
+        printf("%d) %d\n", i, CVECTOR_GET(cv, int, i));
     printf("\n");
 
     VECTOR_FREE(v);
