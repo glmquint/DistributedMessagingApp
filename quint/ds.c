@@ -27,30 +27,6 @@
 
 fd_set master;
 
-// FIXUP: change structures to include vector and cvector
-//
-// DS should have a vector PeerRegister of PeerRecord,
-// each one with its own int port and cvector of neighbors
-/*
-struct Peer
-{
-    int porta;
-    struct Peer *next_peer, *prev_peer;
-};
-
-struct RegistroPeer
-{
-    struct Peer *lista_peer;
-    int numero_peer;
-    char boot_vicini[BOOT_RESP];
-} RegistroPeer;
-
-struct DiscoveryServer
-{
-    int portaserver;
-} DiscoveryServer;
-*/
-
 struct DiscoveryServer {
     int port;
 }DiscoveryServer;
@@ -225,11 +201,10 @@ void Ds_menu()
     fflush(stdout);
 }
 
-//FIXUP: delete this as we shouldn't need it. It's all handled by
+//FIXUP: delete this as we shouldn't need it. It's all handled by void Ds_peerRegistration(int sd)
 //funzione che aggiunge un peer alla lista circolare dei peer ordinata per numero di porta
-void Ds_aggiungiPeer(int porta)
+/*void Ds_aggiungiPeer(int porta)
 {
-    /*
     struct Peer *new_peer = malloc(sizeof(struct Peer));
     new_peer->porta = porta;
 
@@ -276,14 +251,15 @@ void Ds_aggiungiPeer(int porta)
     prevp->next_peer = RegistroPeer.lista_peer;
     RegistroPeer.numero_peer++;
     printf("Peer %d aggiunto correttamente alla lista dei peer connessi\n", porta);
-    */
-}
+    
+}*/
 
-//FIXUP: delete this as we shouldn't need it. It's all handled by
+//FIXUP: delete this as we shouldn't need it. It's all handled by void Ds_peerRegistration(int sd)
 //funzione che rimuove un peer dalla lista dei peer
+/*
 void Ds_rimuoviPeer(int porta)
 {
-    /*
+    
     struct Peer *pp, *prevp;
 
     printf("Rimuovo il peer %d dalla lista dei peer\n", porta);
@@ -320,16 +296,17 @@ void Ds_rimuoviPeer(int porta)
     if(prevp) prevp->next_peer = RegistroPeer.lista_peer;
 
     RegistroPeer.numero_peer--;
-    */
-}
+ 
+}   */
 
-//FIXUP: TODO
+//FIXUP: test
 void sendNeighborsUpdate(int peer, cvector new_neighbors)
 {
-    /*
-    int ret, sd;
+    int ret, sd, len;
+    uint16_t lmsg;
     struct sockaddr_in peer_addr;
     char buffer[1024];
+    char nei_list[1024];
     memset(buffer, 0, sizeof(buffer));
 
     if (peer <= 0)
@@ -349,7 +326,7 @@ void sendNeighborsUpdate(int peer, cvector new_neighbors)
         exit(-1);
     }
 
-    strcpy(buffer, "UPDNEI");
+    strcpy(buffer, "UPDVI");
 
     ret = send(sd, (void *)buffer, REQ_LEN, 0);
     if (ret < 0)
@@ -358,6 +335,36 @@ void sendNeighborsUpdate(int peer, cvector new_neighbors)
         exit(1);
     }
 
+    // text-protocol serialization of CVECTOR
+    memset(nei_list, 0, sizeof(nei_list));
+    for (int i = 0; i < CVECTOR_TOTAL(new_neighbors); i++) {
+        char* nei_port = malloc(6);
+        sprintf(nei_port, "%d", (int) CVECTOR_GET((new_neighbors), int, i));
+        strcat(strcat(nei_list, ":"), nei_port);
+        free(nei_port);
+    }
+
+    memset(buffer, 0, sizeof(buffer));
+    sprintf(buffer, "%d %s", CVECTOR_TOTAL(new_neighbors), nei_list); 
+
+    len = strlen(buffer);
+    lmsg = htons(len);
+    ret = send(sd, (void*) &lmsg, sizeof(uint16_t), 0);
+    if (ret < 0)
+    {
+        perror("Errore nell'invio lunghezza messaggio: ");
+        exit(1);
+    }
+    ret = send(sd, (void*) &buffer, len, 0);
+    if (ret < 0)
+    {
+        perror("Errore nell'invio del messaggio: ");
+        exit(1);
+    }
+
+    close(sd);
+
+/*
     strcpy(buffer, RegistroPeer.boot_vicini);
 
     printf("Comunico al peer %d i suoi nuovi vicini\n\n", peer);
@@ -410,7 +417,7 @@ void Ds_peerRegistration(int sd)
         int new_connections = 0;
         int i = 1;
         while (peers_num % i == 0) {
-            char* nei_port = malloc(4);
+            char* nei_port = malloc(6);
             struct PeerRecord* neighbor =  VECTOR_GET((peerRegister.peers), struct PeerRecord*, peers_num - i);
             DEBUG_PRINT(("new neighbor to add: %d\n", neighbor->port));
             CVECTOR_ADD((newPeer->neighbors), neighbor->port);
@@ -428,8 +435,8 @@ void Ds_peerRegistration(int sd)
             new_connections++;
             i *= 2;
         }
-        sprintf(answer, "%d %s", new_connections, neighbors_list);
-        DEBUG_PRINT(("done with new neighbors\n\n"));
+        sprintf(answer, "%d %s", new_connections, neighbors_list); 
+        DEBUG_PRINT(("done with new neighbors\n\n")); //FIXUP: better log (probably on sPeer_serverBoot)
     }
     VECTOR_ADD((peerRegister.peers), newPeer);
     len = strlen(answer);
@@ -437,13 +444,13 @@ void Ds_peerRegistration(int sd)
     ret = sendto(sd, (void*) &lmsg, sizeof(uint16_t), 0, (struct sockaddr *)&connecting_addr, sizeof(connecting_addr));
     if (ret < 0)
     {
-        perror("Errore nell'invio: ");
+        perror("Errore nell'invio lunghezza messaggio: ");
         exit(1);
     }
-    ret = sendto(sd, (void*) &lmsg, sizeof(uint16_t), 0, (struct sockaddr *)&connecting_addr, sizeof(connecting_addr));
+    ret = sendto(sd, (void*) answer, len, 0, (struct sockaddr *)&connecting_addr, sizeof(connecting_addr));
     if (ret < 0)
     {
-        perror("Errore nell'invio: ");
+        perror("Errore nell'invio del messaggio: ");
         exit(1);
     }
     /*

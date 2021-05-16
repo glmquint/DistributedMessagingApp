@@ -9,6 +9,7 @@
 #include <time.h>
 #include <stdbool.h>
 #include "IOMultiplex.h"
+// #include "vector.h"
 #include "Include.h"
 
 #define DEBUG_ON
@@ -25,6 +26,9 @@ void sPeer_initialize(char* port)
     DEBUG_PRINT(("sono peer: %d\n", sPeer.port));
     cvector_init(&(sPeer.vicini));
     vector_init(&(sPeer.flood_requests));
+
+    FileManager_caricaRegistro();
+    FileManager_caricaArchivioAggregazioni();
 }
 
 //funzione che stampa nel dettaglio le operazioni del peer
@@ -35,6 +39,18 @@ void sPeer_help()
     printf("add type quantity --> aggiunge al register della data corrente l’evento type con quantità quantity. Questo comando provoca la memorizzazione di una nuova entry nel peer\n\n");
     printf("get aggr type period --> effettua una richiesta di elaborazione per ottenere il dato aggregato aggr sui dati relativi a un lasso temporale d’interesse period sulle entry di tipo type. Considerando tali dati su scala giornaliera. Le aggregazioni aggr calcolabili sono il totale e la variazione. Il parametro period è espresso come ‘dd1:mm1:yyyy1-dd2:mm2:yyyy2’, dove con 1 e 2 si indicano, rispettivamente, la data più remota e più recente del lasso temporale d’interesse. Una delle due date può valere ‘*’. Se è la prima, non esiste una data che fa da lower bound. Viceversa, non c’è l’upper bound e il calcolo va fatto fino alla data più recente (con register chiusi). Il parametro period puòmancare, in quel caso il calcolo si fa su tutti i dati. \n\n");
     printf("stop --> il peer richiede una disconnessione dal network. Il comando stop provoca l’invio ai neighbordi tutte le entry registrate dall’avvio. Il peer contatta poi il DS per comunicare la volontà di disconnettersi. Il DS aggiorna i registri di prossimità rimuovendo il peer. Se la rimozione del peer causa l’isolamento di una un’interaparte del network, il DS modifica i registri di prossimitàdi alcuni peer, affinché questo non avvenga\n\n");
+}
+
+void sPeer_showNeighbors()
+{
+    #ifdef DEBUG_ON
+    printf("\nshowing peer: %d\nHis neighbors are:\n", sPeer.port);
+    for (int i = 0; i < CVECTOR_TOTAL((sPeer.vicini)); i++) {
+        printf("[%d] %d\n", i, CVECTOR_GET((sPeer.vicini), int, i));
+    }
+    #else
+    printf("Opzione non valida (Are you developer?)\n\n");
+    #endif
 }
 
 //funzione che si occupa di effettura il boot del Peer inviando un messaggio UDP al Ds
@@ -48,10 +64,14 @@ void sPeer_serverBoot(char *ds_addr, int ds_port)
     char buffer[BOOT_RESP];
     char neighbors_list[1024];
     char msg[BOOT_MSG], tmp[10];
+    char* token;
+    const char delim[2] = ":";
+
     sprintf(tmp, "%d", sPeer.port);
     strcpy(msg, tmp);
 
     memset(neighbors_list, 0, sizeof(neighbors_list));
+    memset(buffer, 0, sizeof(buffer));
 
     strcpy(sPeer.ds_ip, ds_addr);
     sPeer.ds_port = ds_port;
@@ -71,19 +91,33 @@ void sPeer_serverBoot(char *ds_addr, int ds_port)
             perror("Errore nell'invio: ");
             exit(1);
         }
-        sleep(TIMEOUT); // FIXUP: maybe use a select, not to block on this 
+        sleep(TIMEOUT); // FIXUP: maybe use a select with timeout, not to block on this 
         ret = recvfrom(sd, (void*) &lmsg, sizeof(uint16_t), 0, (struct sockaddr *)&srv_addr, &len);
         //se dopo aver aspettato il timeout non ricevo riposta riinvio il messaggio
     } while (ret < 0);
 
     printf("Richiesta di boot accettata\n");
     len = ntohs(lmsg);
+    DEBUG_PRINT(("len is: %d", len));
     ret = recvfrom(sd, (void*)buffer, len, 0, (struct sockaddr *)&srv_addr, &len);
-
+    if (ret < 0)
+    {
+        perror("Errore in fase di ricezione lunghezza messaggio: ");
+        exit(1);
+    }
     sscanf(buffer, "%d %s", &num, neighbors_list);
     printf("Vicini: %d %s\n\n", num, neighbors_list);
 
     //FIXUP: actually parse and add the new neighbor_list in the form `3 :123:234:345
+
+    // first token
+    token = strtok(neighbors_list, delim);
+    // walk through the other tokens
+    while (token != NULL) {
+        DEBUG_PRINT(("%s\n", token));
+        CVECTOR_ADD((sPeer.vicini), atoi(token));
+        token = strtok(NULL, delim);
+    }
 
     close(sd);
 }
@@ -865,6 +899,10 @@ void sPeer_menu()
     {
         sPeer_stop();
     }
+    else if (strcmp("showneighbors", tmp) == 0)
+    {
+        sPeer_showNeighbors();
+    }
     else
     {
         printf("Opzione non valida\n\n");
@@ -886,23 +924,47 @@ void sPeer_gestioneRichiestaRegistri(int sd)
 }
 
 //funzione che gestisce l'arrivo di una comunicazione di nuovi vicini da parte del Ds
+// questi verranno a sostituire i precedenti, in quanto viene sempre inviata l'intera lista aggiornata
 void sPeer_gestisciNuoviVicini(int sd)
 {
-    int ret, num;
+    int ret, num, len;
+    uint16_t lmsg;
+    const char delim[2] = ":";
+    char* token;
     char buffer[1024];
     char neighbors[1024];
 
-    ret = recv(sd, (void *)buffer, BOOT_RESP, 0);
+    ret = recv(sd, (void *)&lmsg, sizeof(uint16_t), 0);
     if (ret < 0)
     {
-        perror("Errore in fase di invio: ");
+        perror("Errore in fase di ricezione lunghezza messaggio: ");
+        exit(1);
+    }
+    len = ntohs(lmsg);
+    ret = recv(sd, (void*)buffer, len, 0);
+    if (ret < 0)
+    {
+        perror("Errore in fase di ricezione messaggio: ");
         exit(1);
     }
     sscanf(buffer, "%d %s", &num, neighbors);
+
+    printf("Mi sono sono stati comunicati nuovi vicini: %d %s\n\n", num, neighbors);
+    // il vecchio vettore verrà completamente sostituito
+    CVECTOR_FREE((sPeer.vicini));
+    cvector_init(&(sPeer.vicini));
+
+    // first token
+    token = strtok(neighbors, delim);
+    // walk through the other tokens
+    while (token != NULL) {
+        DEBUG_PRINT(("%s\n", token));
+        CVECTOR_ADD((sPeer.vicini), atoi(token));
+        token = strtok(NULL, delim);
+    }
+
     close(sd);
     FD_CLR(sd, &iom.master);
-    printf("Mi sono sono stati comunicati nuovi vicini: %d %s\n\n", num, neighbors);
-    // FIXUP: actually add neighbors list from string `neighbors` in the form 123:234:345:
 }
 
 //funzione che gestisce l'arrivo di un messaggio di stop da parte del Ds
@@ -952,8 +1014,7 @@ void emptyFunc(int boot)
 int main(int argc, char *argv[])
 {
     sPeer_initialize(argv[1]);
-    FileManager_caricaRegistro();
-    FileManager_caricaArchivioAggregazioni();
+
 
     sPeer_help();
     printf("\n>> ");

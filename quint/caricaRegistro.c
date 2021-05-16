@@ -32,8 +32,8 @@ void FileManager_salvaRegistro(int porta)
 
 int main()
 {
-  int tamponi, nuovi_casi, completo, i = 0, a, b, c, porta;
-  struct RegistroGiornaliero *next_registro, *new, *ultimo;
+  int a, b, c, porta;
+  struct RegistroGiornaliero *new, *ultimo;
   char buffer[10];
   struct tm tmp = {0};
 

@@ -51,7 +51,7 @@ int main()
         {
             new = malloc(sizeof(struct Aggregazione));
             printf("Inserisci un aggr type e period\n");
-            scanf("%s %s %s", &new->aggr, &new->type, &new->period);
+            scanf("%s %s %s", new->aggr, new->type, new->period);
 
             printf("Inserisci il size_risultato\n");
             scanf("%d", &new->size_risultato);

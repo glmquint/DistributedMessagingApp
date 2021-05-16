@@ -1,7 +1,7 @@
 all: peer ds caricaArchivio caricaRegistro
 
-peer: peer.o ArchivioAggregazioni.o RegistroGenerale.o FileManager.o sPeer.o
-	gcc -Wall peer.o ArchivioAggregazioni.o RegistroGenerale.o FileManager.o sPeer.o -o peer
+peer: peer.o ArchivioAggregazioni.o RegistroGenerale.o FileManager.o vector.o IOMultiplex.o
+	gcc -Wall peer.o ArchivioAggregazioni.o RegistroGenerale.o FileManager.o vector.o IOMultiplex.o -o peer
 
 peer.o: Include.h peer.c
 	gcc -Wall -g -c peer.c 
@@ -15,11 +15,17 @@ RegistroGenerale.o: Include.h RegistroGenerale.c
 FileManager.o: Include.h FileManager.c
 	gcc -Wall -g -c FileManager.c 
 
-sPeer.o: Include.h sPeer.c
-	gcc -Wall -g -c sPeer.c 
+ds: ds.o vector.o IOMultiplex.o
+	gcc -Wall ds.o vector.o IOMultiplex.o -o ds
 
-ds: ds.c
-	gcc -Wall -g ds.c -o ds
+ds.o: ds.c
+	gcc -Wall -g -c ds.c
+
+vector.o: vector.c
+	gcc -Wall -g -c vector.c
+
+IOMultiplex.o: IOMultiplex.c
+	gcc -Wall -g -c IOMultiplex.c
 
 caricaArchivio: caricaArchivio.c
 	gcc -g caricaArchivio.c -o caricaArchivio
