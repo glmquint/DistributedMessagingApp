@@ -34,4 +34,4 @@ caricaRegistro: caricaRegistro.c
 	gcc -g caricaRegistro.c -o caricaRegistro
 
 clean:
-	rm *o peer ds
+	rm *.o caricaArchivio caricaRegistro peer ds

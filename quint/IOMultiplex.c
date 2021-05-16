@@ -8,7 +8,6 @@
 #include <unistd.h>
 #include <time.h>
 #include <stdbool.h>
-#include "vector.h"
 #include "IOMultiplex.h"
 
 //funzione che gestice l'IO del Ds ovvero si occupa di gestire le varie comunicazioni tra i suoi peer e l'input per mezzo della funzione select
