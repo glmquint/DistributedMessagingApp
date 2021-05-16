@@ -299,7 +299,6 @@ void Ds_rimuoviPeer(int porta)
  
 }   */
 
-//FIXUP: test
 void sendNeighborsUpdate(int peer, cvector new_neighbors)
 {
     int ret, sd, len;
@@ -314,6 +313,8 @@ void sendNeighborsUpdate(int peer, cvector new_neighbors)
 
     sd = socket(AF_INET, SOCK_STREAM, 0);
 
+    DEBUG_PRINT(("sto per comunicare a %d i suoi nuovi vicini\n", peer));
+
     memset(&peer_addr, 0, sizeof(peer_addr));
     peer_addr.sin_family = AF_INET;
     peer_addr.sin_port = htons(peer);
@@ -322,6 +323,7 @@ void sendNeighborsUpdate(int peer, cvector new_neighbors)
     ret = connect(sd, (struct sockaddr *)&peer_addr, sizeof(peer_addr));
     if (ret < 0)
     {
+        DEBUG_PRINT(("shouldn't reach\n"));
         perror("Errore in fase di connessione: ");
         exit(-1);
     }
@@ -355,7 +357,8 @@ void sendNeighborsUpdate(int peer, cvector new_neighbors)
         perror("Errore nell'invio lunghezza messaggio: ");
         exit(1);
     }
-    ret = send(sd, (void*) &buffer, len, 0);
+    ret = send(sd, (void*) buffer, len, 0);
+    DEBUG_PRINT(("Ho appena inviato nei_list: %s\tdi lunghezza: %d\n", buffer, len));
     if (ret < 0)
     {
         perror("Errore nell'invio del messaggio: ");
@@ -417,13 +420,14 @@ void Ds_peerRegistration(int sd)
         int new_connections = 0;
         int i = 1;
         while (peers_num % i == 0) {
-            char* nei_port = malloc(6);
+            char* nei_port = malloc(5);
             struct PeerRecord* neighbor =  VECTOR_GET((peerRegister.peers), struct PeerRecord*, peers_num - i);
             DEBUG_PRINT(("new neighbor to add: %d\n", neighbor->port));
             CVECTOR_ADD((newPeer->neighbors), neighbor->port);
 
-            sprintf(nei_port, "%d", neighbor->port);
-            strcat(strcat(neighbors_list, ":"), nei_port);
+            sprintf(nei_port, ":%d", neighbor->port);
+            // strcat(strcat(neighbors_list, ":"), nei_port);
+            strcat(neighbors_list, nei_port);
             free(nei_port);
             DEBUG_PRINT(("now neighbors_list is: %s\n", neighbors_list));
 
@@ -435,11 +439,11 @@ void Ds_peerRegistration(int sd)
             new_connections++;
             i *= 2;
         }
-        sprintf(answer, "%d %s", new_connections, neighbors_list); 
-        DEBUG_PRINT(("done with new neighbors\n\n")); //FIXUP: better log (probably on sPeer_serverBoot)
+        sprintf(answer, "%d %s:", new_connections, neighbors_list); // FIXUP; remove trailing : for continuity
     }
     VECTOR_ADD((peerRegister.peers), newPeer);
     len = strlen(answer);
+    DEBUG_PRINT(("done with new neighbors. I'm gonna answer: %s\t of len: %d\n\n", answer, len)); //FIXUP: better log (probably on sPeer_serverBoot)
     lmsg = htons(len);
     ret = sendto(sd, (void*) &lmsg, sizeof(uint16_t), 0, (struct sockaddr *)&connecting_addr, sizeof(connecting_addr));
     if (ret < 0)
@@ -447,12 +451,13 @@ void Ds_peerRegistration(int sd)
         perror("Errore nell'invio lunghezza messaggio: ");
         exit(1);
     }
-    ret = sendto(sd, (void*) answer, len, 0, (struct sockaddr *)&connecting_addr, sizeof(connecting_addr));
+    ret = sendto(sd, (void*)answer, len, 0, (struct sockaddr *)&connecting_addr, sizeof(connecting_addr));
     if (ret < 0)
     {
         perror("Errore nell'invio del messaggio: ");
         exit(1);
     }
+    DEBUG_PRINT(("done with new neighbors. I answered: %s\t of len: %d\n\n", answer, len)); //FIXUP: better log (probably on sPeer_serverBoot)
     /*
     Ds_aggiungiPeer(new_peer_port);
     Ds_restituisciVicini(new_peer_port);
@@ -474,9 +479,9 @@ void Ds_peerRegistration(int sd)
 //funzione che gestisce la disconnessione da parte di un peer
 void Ds_handleDisconnectReq(int sd)
 {
-    int ret, peer;
+    int ret, disconnecting_peer_port;
     uint16_t lmsg;
-    struct PeerRecord* last_peer;
+    struct PeerRecord *last_peer, *disconnecting_peer;
 
     ret = recv(sd, (void *)&lmsg, sizeof(uint16_t), 0);
     if (ret < 0)
@@ -485,17 +490,82 @@ void Ds_handleDisconnectReq(int sd)
         exit(1);
     }
 
-    peer = ntohs(lmsg);
-    printf("Gestisco la disconnessione del peer %d\n", peer);
+    disconnecting_peer_port = ntohs(lmsg);
+    printf("Gestisco la disconnessione del peer %d\n", disconnecting_peer_port);
 
-    DEBUG_PRINT(("This is a description of the traitor:\n"));
-    Ds_showneighbor(peer);
+    DEBUG_PRINT(("This is a description of the disconnecting peer:\n"));
+    #ifdef DEBUG_ON
+    Ds_showneighbor(disconnecting_peer_port);
+    #endif
+
     last_peer = (struct PeerRecord*) VECTOR_GET((peerRegister.peers), void*, -1);
+    
     DEBUG_PRINT(("He is gonna be replaced by:\n"));
+    #ifdef DEBUG_ON
     Ds_showneighbor(last_peer->port);
+    #endif
 
-    //FIXUP: actually change peerRegister with new neighborhood, whith last_peer shift, as per the zukunfty algoritm
+    // il peer in fondo al vettore viene rimosso dalla lista dei vicini di tutti i suoi vicini
+    for (int i = 0; i < CVECTOR_TOTAL((last_peer->neighbors)); i++) {
+        int neighbor_port = CVECTOR_GET((last_peer->neighbors), int, i); // l'i-esimo vicino dell'ultimo peer nel vettore
+        struct PeerRecord* neighbor;
+        if(neighbor_port == disconnecting_peer_port)
+            continue; // questo peer si è appena disconnesso, non ha senso contattarlo
+        for (int i = 0; i < VECTOR_TOTAL((peerRegister.peers)); i++) {
+            neighbor = (struct PeerRecord*) VECTOR_GET((peerRegister.peers), void*, i);
+            if (neighbor->port == neighbor_port)
+                break; // FIXUP: soluzione naive. Andrebbe controllato che peer_port fosse effettivamente presente, altrimenti così stiamo considerando l'ultimo del vettore. Also, refactor as searchByPort()
+        }
 
+        for (int j = 0; j < CVECTOR_TOTAL((neighbor->neighbors)); j++) {
+            int nei_neighbor_port = CVECTOR_GET((neighbor->neighbors), int, j);
+            if (nei_neighbor_port == last_peer->port){
+                CVECTOR_DELETE((neighbor->neighbors), j); // si modifica il vettore su cui si sta iterando ma non dovrebbe succedere nulla di male -cit
+                break;
+            }
+        }
+        sendNeighborsUpdate(neighbor->port, neighbor->neighbors); //ogni vicino riceve la notifica di "disconnessione" del peer in fondo alla lista
+    }
+    // se il peer che ha richiesto la disconnessione è proprio il peer in fondo al vettore, possiamo anche fermarci quì, 
+    // altrimenti è necessario far andare il peer in fondo al vettore al posto del peer che ha richiesto di disconnettersi
+    if (last_peer->port != disconnecting_peer_port) {
+        DEBUG_PRINT(("il peer non era l'ultimo della lista, qundi bisogna fare la traslazione\n"));
+        for (int i = 0; i < VECTOR_TOTAL((peerRegister.peers)); i++) {
+            disconnecting_peer = (struct PeerRecord*) VECTOR_GET((peerRegister.peers), void*, i);
+            if (disconnecting_peer_port == disconnecting_peer->port)
+                break; // FIXUP: soluzione naive. Andrebbe controllato che peer_port fosse effettivamente presente, altrimenti così stiamo considerando l'ultimo del vettore. Also, refactor as searchByPort()
+        }
+
+        for (int i = 0; i < CVECTOR_TOTAL((disconnecting_peer->neighbors)); i++) {
+            bool trovato = false;
+            int neighbor_port = CVECTOR_GET((disconnecting_peer->neighbors), int, i); // l'i-esimo vicino del peer che ha chiesto la disconnessione
+            struct PeerRecord* neighbor;
+            if(neighbor_port == disconnecting_peer_port) 
+                continue; // questo peer si è appena disconnesso, non ha senso contattarlo
+
+            for (int j = 0; j < VECTOR_TOTAL((peerRegister.peers)); j++) {
+                neighbor = (struct PeerRecord*) VECTOR_GET((peerRegister.peers), void*, j);
+                if (neighbor->port == neighbor_port)
+                    break; // FIXUP: soluzione naive. Andrebbe controllato che peer_port fosse effettivamente presente, altrimenti così stiamo considerando l'ultimo del vettore. Also, refactor as searchByPort()
+            }
+            
+            for (int j = 0; j < CVECTOR_TOTAL((neighbor->neighbors)); j++) {
+                int nei_neighbor_port = CVECTOR_GET((neighbor->neighbors), int, j);
+                if (nei_neighbor_port == last_peer->port || neighbor_port == last_peer->port)
+                    trovato = true;
+                if (nei_neighbor_port == disconnecting_peer->port){
+                    CVECTOR_DELETE((neighbor->neighbors), j); // si modifica il vettore su cui si sta iterando ma non dovrebbe succedere nulla di male -cit
+                    break;
+                }
+            }
+            if (!trovato)
+                CVECTOR_ADD((neighbor->neighbors), last_peer->port);
+            sendNeighborsUpdate(neighbor->port, neighbor->neighbors); //ogni vicino riceve la notifica di disconnessione del peer che ne aveva fatto richiesta
+        }
+        disconnecting_peer->port = last_peer->port;
+        sendNeighborsUpdate(disconnecting_peer->port, disconnecting_peer->neighbors);// adesso è il peer che era in fondo e che ha preso il posto del peer disconnesso
+    }
+    VECTOR_DELETE((peerRegister.peers), -1);
     /*
     Ds_restituisciVicini(peer);
     sscanf(RegistroPeer.boot_vicini, "%d %d", &peer1, &peer2);
@@ -503,7 +573,10 @@ void Ds_handleDisconnectReq(int sd)
     Ds_comunicaNuoviVicini(peer1);
     Ds_comunicaNuoviVicini(peer2);
     */
-
+    //send(sd, "X", 1, 0); // ACK inviato al peer che ha richiesto di disconnettersi.
+                        // da inviare solo dopo che il registro di vicinanze sia stato aggiornato correttamente
+                        // FIXUP: forse è possibile farne a meno, ma bisogna assicurarsi che durante tutta
+                        // questa funzione non venga mai contattato il peer in questione
     close(sd);
     FD_CLR(sd, &master);
 }

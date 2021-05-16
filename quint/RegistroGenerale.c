@@ -1,4 +1,13 @@
 #include "Include.h"
+
+#define DEBUG_ON
+
+#ifdef DEBUG_ON
+# define DEBUG_PRINT(x) printf x
+#else
+# define DEBUG_PRINT(x) do {} while (0)
+#endif
+
 /* Database che racchiude e gestisce le entry di nuovi casi/tamponi inseriti dai peer */
 
 //funzione che compara le due date passate come parametro 
@@ -12,6 +21,8 @@ int RegistroGenerale_comparaData(struct tm prima_data, struct tm seconda_data)
 
     prima = mktime(&prima_data_pulita);
     seconda = mktime(&seconda_data_pulita);
+
+    DEBUG_PRINT(("in comparaData\tprima_data: %d\tseconda_data: %d\n", (int)prima, (int)seconda));
 
     if (seconda >= prima)
     {
@@ -360,6 +371,7 @@ void RegistroGenerale_invioRegistriRichiesti(int sd)
         ret = send(sd, (void *)buffer, len, 0);
 
         pp = pp->next_registro;
+        DEBUG_PRINT(("registro inviato\n"));
     }
     ret = recv(sd, (void*)&lmsg, sizeof(uint16_t), 0);
     if(ret < 0){

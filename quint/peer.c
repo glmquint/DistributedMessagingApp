@@ -12,6 +12,8 @@
 // #include "vector.h"
 #include "Include.h"
 
+#define TIMEOUT 100000              /*tempo che il peer aspetta per ricevere la risposta al boot dal server*/
+                                    // se si usa usleep(), indica i microsecondi
 #define DEBUG_ON
 
 #ifdef DEBUG_ON
@@ -57,9 +59,9 @@ void sPeer_showNeighbors()
 void sPeer_serverBoot(char *ds_addr, int ds_port)
 {
     //faccio il boot
-    int ret, sd, num;
+    int ret, sd, num, len;
     uint16_t lmsg;
-    socklen_t len;
+    socklen_t addrlen;
     struct sockaddr_in srv_addr;
     char buffer[BOOT_RESP];
     char neighbors_list[1024];
@@ -83,6 +85,8 @@ void sPeer_serverBoot(char *ds_addr, int ds_port)
     srv_addr.sin_port = htons(ds_port);
     inet_pton(AF_INET, ds_addr, &srv_addr.sin_addr);
 
+    addrlen = sizeof(srv_addr);
+
     do
     {
         printf("Invio il messaggio di boot\n");
@@ -91,22 +95,23 @@ void sPeer_serverBoot(char *ds_addr, int ds_port)
             perror("Errore nell'invio: ");
             exit(1);
         }
-        sleep(TIMEOUT); // FIXUP: maybe use a select with timeout, not to block on this 
-        ret = recvfrom(sd, (void*) &lmsg, sizeof(uint16_t), 0, (struct sockaddr *)&srv_addr, &len);
+        usleep(TIMEOUT); // FIXUP: maybe use a select with timeout, not to block on this 
+        ret = recvfrom(sd, (void*) &lmsg, sizeof(uint16_t), 0, (struct sockaddr *)&srv_addr, &addrlen);
         //se dopo aver aspettato il timeout non ricevo riposta riinvio il messaggio
     } while (ret < 0);
 
     printf("Richiesta di boot accettata\n");
     len = ntohs(lmsg);
-    DEBUG_PRINT(("len is: %d", len));
-    ret = recvfrom(sd, (void*)buffer, len, 0, (struct sockaddr *)&srv_addr, &len);
-    if (ret < 0)
+    DEBUG_PRINT(("len is: %d\n", len));
+    ret = recvfrom(sd, (void*)buffer, len, 0, (struct sockaddr *)&srv_addr, &addrlen);
+    if (ret < 0 || ret < len)
     {
         perror("Errore in fase di ricezione lunghezza messaggio: ");
+        DEBUG_PRINT(("ret: %d", ret));
         exit(1);
     }
     sscanf(buffer, "%d %s", &num, neighbors_list);
-    printf("Vicini: %d %s\n\n", num, neighbors_list);
+    printf("Answer ricevuta: %d %s\n\n", num, neighbors_list);
 
     //FIXUP: actually parse and add the new neighbor_list in the form `3 :123:234:345
 
@@ -394,7 +399,7 @@ void sPeer_disconnessioneNetwork()
 //funzione che gestisce la ricezione di un messaggio di stop da parte di un neighbor peer
 void sPeer_gestisciStop(int sd)
 {
-    printf("Ho ricevuto una richiesta di stop\n");
+    printf("Ho ricevuto una richiesta di stop da parte di un vicino\n");
     RegistroGenerale_ricevoRegistriRichiesti(sd);                          //ricevo i registri dal peer che si sta disconettendo
     RegistroGenerale_modificoIlRegistroGeneraleInBaseAiRegistriRicevuti(); //me li salvo nel RegistroGenerale
 
@@ -405,23 +410,15 @@ void sPeer_gestisciStop(int sd)
 //funzione che gestisce il comando di stop
 void sPeer_stop()
 {
-    int sd, ret, i, vicino = 0, cont = 0;
+    int sd, ret, cont = 0;
     struct sockaddr_in peer_addr;
     struct RegistroGiornaliero *pp;
     char buffer[1024];
 
-    for (i = 0; i < CVECTOR_TOTAL((sPeer.vicini)); i++)
-    {
-        int i_esimo_vicino = CVECTOR_GET((sPeer.vicini), int, i);
-        if (i_esimo_vicino != 0)
-        {
-            vicino = i_esimo_vicino;
-            break;
-        }
-    }
 
-    if (vicino)
+    if (CVECTOR_TOTAL((sPeer.vicini)) > 0)
     {
+        int vicino = CVECTOR_GET((sPeer.vicini), int, 0); // il primo vicino è sicuramente presente e sarà colui che riceverà il mio registro generale
         sd = socket(AF_INET, SOCK_STREAM, 0);
 
         memset(&peer_addr, 0, sizeof(peer_addr));
@@ -456,12 +453,17 @@ void sPeer_stop()
         }
         RegistroGenerale.numero_registri_richiesti = cont;
         RegistroGenerale_invioRegistriRichiesti(sd);
+        //recv(sd, buffer, 1, 0); // ACK da parte del Ds per potersi disconnettere
+                                // necessario affinché la struttura dati di vicinanza tenuta dal DS
+                                // venga aggiornata correttamente
+        //DEBUG_PRINT(("ho finalmente ricevuto l'ack\n"));
         close(sd);
     }
 
     sPeer_disconnessioneNetwork();
     FileManager_salvaArchivioAggregazioni();
     FileManager_salvaRegistro(0);
+    //Let the OS free all used memory...
     exit(0);
 }
 
@@ -933,6 +935,8 @@ void sPeer_gestisciNuoviVicini(int sd)
     char* token;
     char buffer[1024];
     char neighbors[1024];
+    memset(buffer, 0, sizeof(buffer));
+    memset(neighbors, 0, sizeof(neighbors));
 
     ret = recv(sd, (void *)&lmsg, sizeof(uint16_t), 0);
     if (ret < 0)
@@ -941,6 +945,7 @@ void sPeer_gestisciNuoviVicini(int sd)
         exit(1);
     }
     len = ntohs(lmsg);
+    DEBUG_PRINT(("devo ricevere %d bytes\n", len));
     ret = recv(sd, (void*)buffer, len, 0);
     if (ret < 0)
     {
@@ -949,7 +954,7 @@ void sPeer_gestisciNuoviVicini(int sd)
     }
     sscanf(buffer, "%d %s", &num, neighbors);
 
-    printf("Mi sono sono stati comunicati nuovi vicini: %d %s\n\n", num, neighbors);
+    printf("Mi sono stati comunicati i %d nuovi vicini: %s\n\n", num, neighbors);
     // il vecchio vettore verrà completamente sostituito
     CVECTOR_FREE((sPeer.vicini));
     cvector_init(&(sPeer.vicini));
@@ -958,8 +963,10 @@ void sPeer_gestisciNuoviVicini(int sd)
     token = strtok(neighbors, delim);
     // walk through the other tokens
     while (token != NULL) {
-        DEBUG_PRINT(("%s\n", token));
-        CVECTOR_ADD((sPeer.vicini), atoi(token));
+        if(atoi(token) != sPeer.port) { // un peer non deve avere se stesso come vicino
+            DEBUG_PRINT(("I add (%d) because i'm (%d) and i'm different\n", atoi(token), sPeer.port));
+            CVECTOR_ADD((sPeer.vicini), atoi(token));
+        }
         token = strtok(NULL, delim);
     }
 
@@ -1019,6 +1026,9 @@ int main(int argc, char *argv[])
     sPeer_help();
     printf("\n>> ");
     fflush(stdout);
+    #ifdef DEBUG_ON
+    sPeer_serverBoot("127.0.0.1", 4242); // just to save time
+    #endif
     IOMultiplex(sPeer.port, &iom, false, sPeer_menu, emptyFunc, sPeer_handleTCP);    
     return 0;
 }

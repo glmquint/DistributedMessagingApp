@@ -32,8 +32,14 @@
     return error;
 
 #define DELETE_COMMON(resize_func,retval)\
-    if (index < 0 || index >= v->total)\
+    if (index >= v->total)\
         return;\
+    if (index < 0){\
+        if (v->total + index >= 0 && v->total + index < v->total)\
+            index += v->total;\
+        else\
+            return;\
+    }\
     v->items[index] = retval;\
     for (int i = index; i < v->total - 1; i++) {\
         v->items[i] = v->items[i + 1];\

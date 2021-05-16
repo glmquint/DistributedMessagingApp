@@ -29,7 +29,7 @@ void FileManager_salvaArchivioAggregazioni()
     fclose(fptr);
 }
 
-//funzione che salva sul file salvaRegistro(numeroPeer) i Registri del RegistroGenerale presenti in memoria.
+//funzione che salva sul file salvaRegistro(+)numeroPeer i Registri del RegistroGenerale presenti in memoria.
 //il parametro ds è impostato a 1 quando è il ds a odinare al peer di chiudersi.
 //Se il parametro è 0 la salvaRegistro è chiamata dalla stop e il peer salva su file i suoi registri solo se non li ha potuti trasmettere a 
 //nessun vicino 
@@ -37,7 +37,6 @@ void FileManager_salvaRegistro(int ds)
 {
     struct RegistroGiornaliero *pp;
     FILE *fptr;
-    int trovato = 0, i;
     char buffer[1024], tmp[10];
     strcpy(buffer, "./salvaRegistro");
     sprintf(tmp, "%d", sPeer.port);
@@ -50,12 +49,7 @@ void FileManager_salvaRegistro(int ds)
         exit(1);
     }
 
-    for(i = 0; i < CVECTOR_TOTAL((sPeer.vicini)); i++){
-        if(CVECTOR_GET((sPeer.vicini), int, i)!=0) 
-            trovato = 1;
-    }
-
-    if(!trovato || ds){
+    if(CVECTOR_TOTAL((sPeer.vicini)) == 0 || ds){
         printf("Salvo sul file %s i Registri presenti in memoria\n", buffer);
         pp = RegistroGenerale.lista_registri;
         while (pp != 0)

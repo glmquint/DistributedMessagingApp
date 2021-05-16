@@ -11,13 +11,12 @@
 #include "vector.h"
 
 
-#define TIMEOUT 1              /*tempo che il peer aspetta per ricevere la risposta al boot dal server*/
 #define BOOT_MSG 6            /*"10000\0"*/
 #define BOOT_RESP 12           /*"10001 10002\0"*/
 #define MAX_SIZE_RISULTATO 100 /*definisce la dimesione massima dellarray del risultato delle Aggregazioni*/
 
 #define REQAG_LEN 50 
-#define MAX_PEER_DA_CONTATTARE 100
+#define MAX_PEER_DA_CONTATTARE 100 //FIXUP: shoudn't need this
 
 time_t rawtime; /*rawtime di uso globale*/
 
@@ -98,10 +97,11 @@ struct RegistroGiornaliero
     struct tm data;
     int tamponi;
     int nuovi_casi;
-    int completo; /*0 non completo, 1 completo*/
+    bool completo;
     struct RegistroGiornaliero *next_registro;
 };
 
+// FIXUP: this can definitly be a vector
 struct DataNecessaria
 {
     struct tm data;
@@ -127,8 +127,8 @@ void RegistroGenerale_ricevoDateNecessarie(int sd);
 
 
 /*ArchivioAggregazioni definitions*/
-//CLEAN: it should be ok to have it as a list,
-// as we wouldn't get the benefits of using a vector
+//FIXUP: CHECK. It should be ok to have it as a list,
+// as we wouldn't get the benefits of using a vector... but maybeee
 struct ArchivioAggregazioni
 {
     struct Aggregazione *lista_aggregazioni;
