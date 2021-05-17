@@ -12,7 +12,7 @@
 
 
 #define BOOT_MSG 6            /*"10000\0"*/
-#define BOOT_RESP 12           /*"10001 10002\0"*/
+#define BOOT_RESP 1024          /*can't say for sure, but this should be safe*/
 #define MAX_SIZE_RISULTATO 100 /*definisce la dimesione massima dellarray del risultato delle Aggregazioni*/
 
 #define REQAG_LEN 50 

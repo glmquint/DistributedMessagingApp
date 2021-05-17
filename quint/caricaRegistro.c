@@ -60,7 +60,7 @@ int main()
       mktime(&tmp);
       new->data = tmp;
       printf("Inserisci il numero di tamponi di nuovi casi e se è completo\n");
-      scanf("%d %d %d", &new->tamponi, &new->nuovi_casi, &new->completo);
+      scanf("%d %d %d", &new->tamponi, &new->nuovi_casi, (int*)&new->completo);
       if (ultimo)
         ultimo->next_registro = new;
       if (lista == 0)

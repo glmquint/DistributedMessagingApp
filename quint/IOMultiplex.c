@@ -69,7 +69,7 @@ void IOMultiplex(int port,
     while (1)
     {
         read_fds = iom->master;
-        select(iom->fdmax + 1, &read_fds, NULL, NULL, NULL);
+        if(select(iom->fdmax + 1, &read_fds, NULL, NULL, NULL) > 0 );
 
         for (i = 0; i <= iom->fdmax; i++)
         {

@@ -110,6 +110,7 @@ void sPeer_serverBoot(char *ds_addr, int ds_port)
         DEBUG_PRINT(("ret: %d", ret));
         exit(1);
     }
+    DEBUG_PRINT(("buffer recieved: %s\n", buffer));
     sscanf(buffer, "%d %s", &num, neighbors_list);
     printf("Answer ricevuta: %d %s\n\n", num, neighbors_list);
 
@@ -381,7 +382,7 @@ void sPeer_disconnessioneNetwork()
     strcpy(buffer, "RSTOP");
 
     ret = send(sd, (void *)buffer, REQ_LEN, 0);
-    if (ret < 0)
+    if (ret < REQ_LEN)
     {
         perror("Errore in fase di invio: ");
         exit(-1);
@@ -389,11 +390,18 @@ void sPeer_disconnessioneNetwork()
 
     lmsg = htons(sPeer.port);
     ret = send(sd, (void *)&lmsg, sizeof(uint16_t), 0);
-    if (ret < 0)
+    if (ret < sizeof(uint16_t))
     {
         perror("Errore in fase di invio: ");
         exit(-1);
     }
+    ret = recv(sd, (void*)buffer, 4, 0); // ACK
+    if (ret < 4)
+    {
+        perror("Errore in fase di ricezione: ");
+        exit(1);
+    }
+
 }
 
 //funzione che gestisce la ricezione di un messaggio di stop da parte di un neighbor peer
