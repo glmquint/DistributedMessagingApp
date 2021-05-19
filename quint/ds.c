@@ -572,5 +572,5 @@ int main(int argc, char *argv[])
     Ds_initialize(argv[1]);
     Ds_help();
     IOMultiplex(DiscoveryServer.port, &iom, true, Ds_menu, Ds_peerRegistration, DS_handleTCP);
-    return 0;
+    return (0);
 }

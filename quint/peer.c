@@ -828,6 +828,14 @@ void sPeer_gestioneFlood(int sd)
 }
 
 //funzione che chiama le giuste funzione in base alle operazione richieste dall'utente
+// esempi di comandi disponibili
+//      - start 127.0.0.1 4242
+//      - add tampone 2
+//      - add nuovo 3
+//      - get sum tampone 01:02:2020-02:03:2030
+//      - get avg nuovo 03:04:2020-*
+//      - stop
+//      - showneighbors (solo in modalità sviluppatore, ossia con `#define DEBUG_ON`)
 void sPeer_menu(char* buffer)
 {
     char ds_addr[20], type[20], aggr[20], period[50], tmp[20];
@@ -1020,10 +1028,12 @@ void sPeer_handleTCP(char* buffer, int sd)
         SCREEN_PRINT(("Ricevuto messaggio non valido\n"));
 }
 
+/* FIXUP: clean
 void sPeer_handlSTDIN(char* buffer)
 {
     sPeer_menu(buffer);
 }
+*/
 
 // non verrà mai chiamata se use_udp è posto a false in IOMultiplex,
 // i peer infatti non sono mai passivamente in ascolto su un socket udp
@@ -1038,11 +1048,10 @@ int main(int argc, char *argv[])
 {
     sPeer_initialize(argv[1]);
 
-
     sPeer_help();
     #ifdef DEBUG_ON
     sPeer_serverBoot("127.0.0.1", 4242); // just to save time
     #endif
     IOMultiplex(sPeer.port, &iom, false, sPeer_menu, emptyFunc, sPeer_handleTCP);    
-    return 0;
+    return (0);
 }

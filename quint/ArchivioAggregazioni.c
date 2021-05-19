@@ -1,16 +1,26 @@
 #include "Include.h"
 
+#define DEBUG_ON
+
+#ifdef DEBUG_ON
+# define DEBUG_PRINT(x) printf x
+#else
+# define DEBUG_PRINT(x) do {} while (0)
+#endif
+
+#define SCREEN_PRINT(x) printf("\r"); printf x; printf("\n>> ");
+
 //funzione che stampa l'aggregazione ricevuta come argomento
 void ArchivioAggregazioni_stampaAggregazione(struct Aggregazione *pp)
 {
     int i = 0;
-    printf("Il risultato è: \n");
+    SCREEN_PRINT(("Il risultato è: \n"));
     for (i = 0; i < pp->size_risultato; i++)
     {
-        printf("%s: ", pp->intervallo_date[i]);
-        printf("%d\n", pp->risultato[i]);
+        SCREEN_PRINT(("%s: ", pp->intervallo_date[i]));
+        SCREEN_PRINT(("%d\n", pp->risultato[i]));
     }
-    printf("\n");
+    SCREEN_PRINT(("\n"));
 }
 
 //funcione che controlla se un'aggregazione è presente nell'ArchivioAggregazioni
@@ -18,7 +28,7 @@ struct Aggregazione *ArchivioAggregazioni_controlloPresenzaAggregazione(char *ag
 {
     struct Aggregazione *pp;
 
-    printf("Controllo se l'aggregazione è presente nell'Archivio\n");
+    SCREEN_PRINT(("Controllo se l'aggregazione è presente nell'Archivio\n"));
     pp = ArchivioAggregazioni.lista_aggregazioni;
     while (pp != 0)
     {
@@ -28,14 +38,14 @@ struct Aggregazione *ArchivioAggregazioni_controlloPresenzaAggregazione(char *ag
             {
                 if (strcmp(pp->period, period) == 0)
                 {
-                    printf("Aggregazione trovata\n");
+                    SCREEN_PRINT(("Aggregazione trovata\n"));
                     return pp;
                 }
             }
         }
         pp = pp->next_aggregazione;
     }
-    printf("Aggregazione non trovata\n");
+    SCREEN_PRINT(("Aggregazione non trovata\n"));
     return 0;
 }
 
@@ -68,14 +78,14 @@ void ArchivioAggregazioni_aggiungiAggregazione(char *aggr, char *type, char *per
     {
         ArchivioAggregazioni.lista_aggregazioni = new;
     }
-    printf("Aggregazione aggiunta all'Archivio\n");
-    printf("Il risultato dell'aggregazione è: \n");
+    SCREEN_PRINT(("Aggregazione aggiunta all'Archivio\n"));
+    SCREEN_PRINT(("Il risultato dell'aggregazione è: \n"));
     for (i = 0; i < size_risultato; i++)
     {
-        printf("%s: ", intervallo_date[i]);
-        printf("%d\n", risultato[i]);
+        SCREEN_PRINT(("%s: ", intervallo_date[i]));
+        SCREEN_PRINT(("%d\n", risultato[i]));
     }
-    printf("\n");
+    SCREEN_PRINT(("\n"));
 }
 
 //funzione che setta l'array di date nell'aggregazione che sto calcolando
@@ -121,7 +131,7 @@ void ArchivioAggregazioni_calcoloAggregazione(char *aggr, char *type, char *peri
     //Scorro tutti i RegistriGiornalieri del RegistroGenerale. Se la data è compresa tra il periodo di inizio e di fine dell'aggregazione
     //aggiungo i suoi valori al calcolo. Se è un totale ne aggiungo i valori se è una variazione faccio la differenza tra il giorno corrente
     //e il giorno precedente
-    printf("Calcolo l'aggregazione\n");
+    SCREEN_PRINT(("Calcolo l'aggregazione\n"));
     if (strcmp("totale", aggr) == 0)
     {
         size_risultato = 1;
@@ -184,7 +194,7 @@ void ArchivioAggregazioni_calcoloAggregazione(char *aggr, char *type, char *peri
             size_risultato++;
         }
     }
-    printf("Aggregazione calcolata correttamente\n");
+    SCREEN_PRINT(("Aggregazione calcolata correttamente\n"));
     ArchivioAggregazioni_aggiungiAggregazione(aggr, type, period, risultato, intervallo_date, size_risultato);
 }
 
@@ -203,7 +213,7 @@ int ArchivioAggregazioni_verificaPresenzaDati(int flood)
     struct DataNecessaria *pd = 0, *prevp = 0;
     pr = RegistroGenerale.lista_registri;
 
-    printf("Verifico la presenza dei dati\n");
+    SCREEN_PRINT(("Verifico la presenza dei dati\n"));
     //Se la prima data è * non posso rimuovere date dalle DateNecessarie mi limito ad aggiungere il peer alla lista dei peer da contattare
     //se il peer ha un registro che ha una data compresa tra 1 1 1970 e la seconda data
     if (flood == 1)
@@ -215,7 +225,7 @@ int ArchivioAggregazioni_verificaPresenzaDati(int flood)
                 if ((RegistroGenerale_comparaData(period1, pr->data) == 0 || RegistroGenerale_comparaData(period1, pr->data) == 1) && (RegistroGenerale_comparaData(pr->data, period2) == 0 || RegistroGenerale_comparaData(pr->data, period2) == 1))
                 {
                     sPeer_aggiungiPeerDaContattare(sPeer.port);
-                    printf("Registro trovato, Peer aggiunto ai peer da contattare\n");
+                    SCREEN_PRINT(("Registro trovato, Peer aggiunto ai peer da contattare\n"));
                     return 0;
                 }
                 pr = pr->next_registro;
@@ -258,26 +268,26 @@ int ArchivioAggregazioni_verificaPresenzaDati(int flood)
         return 0;
 }
 
-//funzione che gestisce il calcolo dell'aggregazione nel caso in cui il non abbia trovato nel suo Archivio l'aggregazione richiesta
+//funzione che gestisce il calcolo dell'aggregazione nel caso in cui il peer non abbia trovato nel suo Archivio l'aggregazione richiesta
 void ArchivioAggregazioni_precalcoloAggregazione(char *aggr, char *type, char *period)
 {
     if (ArchivioAggregazioni_verificaPresenzaDati(0))
     {
-        printf("Il peer HA tutte le date necessarie per calcolare l'aggregazione\n");
+        SCREEN_PRINT(("Il peer HA tutte le date necessarie per calcolare l'aggregazione\n"));
         ArchivioAggregazioni_calcoloAggregazione(aggr, type, period);
         return;
     }
     else
     {
-        printf("Il peer NON HA tutte le date necessarie per calcolare l'aggregazione\n");
-        printf("Inoltro richiesta ai neighbor per l'aggregazione\n");
+        SCREEN_PRINT(("Il peer NON HA tutte le date necessarie per calcolare l'aggregazione\n"));
+        SCREEN_PRINT(("Inoltro richiesta ai neighbor per l'aggregazione\n"));
         if (sPeer_richiestaAggregazioneNeighbor(aggr, type, period))
         {
             return; //se i miei vicini mi passano l'aggregazione l'aggiungo all'ArchivioAggregazioni e la stampo
         }
         else
         {
-            printf("Aggregazione non fornita dai neighbor\n");
+            SCREEN_PRINT(("Aggregazione non fornita dai neighbor\n"));
             strcpy(ArchivioAggregazioni.aggr, aggr);
             strcpy(ArchivioAggregazioni.type, type);
             strcpy(ArchivioAggregazioni.period, period);
@@ -299,7 +309,7 @@ int ArchivioAggregazioni_periodoValido(char *period)
     time_t prima, seconda, oggi;
     char tmp_mday[10], tmp_mon[10], tmp_year[10], buffer[50];
 
-    printf("Analizzo il periodo inserito\n");
+    SCREEN_PRINT(("Analizzo il periodo inserito\n"));
     strcpy(buffer, period);
 
     //creo le due date a partire dalla stringa letta come parametro se il parametro non era presente(" ") le due date create saranno
@@ -426,7 +436,7 @@ int ArchivioAggregazioni_periodoValido(char *period)
             return 0;
     }
 
-    printf("Il periodo inserito è valido\n");
+    SCREEN_PRINT(("Il periodo inserito è valido\n"));
 
     sprintf(tmp_mday, "%d", period1.tm_mday);
     somma = period1.tm_mon + 1; 
@@ -462,6 +472,7 @@ int ArchivioAggregazioni_periodoValido(char *period)
 //funzione che gestisce la richiesta di aggregazione da input
 void ArchivioAggregazioni_gestioneAggregazione(char *aggr, char *type, char *period)
 {
+    DEBUG_PRINT(("richiesta aggregazione: %s, tipo: %s, periodo: %d", aggr, type, period));
     struct Aggregazione *pp;
     if (ArchivioAggregazioni_periodoValido(period)) //la periodoValido modifica la stringa period nel modo giusto
     {
@@ -478,7 +489,7 @@ void ArchivioAggregazioni_gestioneAggregazione(char *aggr, char *type, char *per
     }
     else
     {
-        printf("Errore: periodo non valido\n\n");
+        SCREEN_PRINT(("Errore: periodo non valido\n\n"));
         return;
     }
 }
