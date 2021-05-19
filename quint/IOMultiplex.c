@@ -30,7 +30,6 @@ void IOMultiplex(int port,
 {
     int ret, newfd, listener, i, boot;
     socklen_t addrlen;
-    fd_set read_fds;
 
     struct sockaddr_in my_addr, cl_addr;
     char buffer[1024];
@@ -78,8 +77,8 @@ void IOMultiplex(int port,
 
     while (1)
     {
-        read_fds = iom->master;
-        i = select(iom->fdmax + 1, &read_fds, NULL, NULL, NULL);
+        iom->read_fds = iom->master;
+        i = select(iom->fdmax + 1, &(iom->read_fds), NULL, NULL, NULL);
         if (i < 0)
         {
             perror("select returned %d: ");
@@ -88,7 +87,7 @@ void IOMultiplex(int port,
 
         for (i = 0; i <= iom->fdmax; i++)
         {
-            if (FD_ISSET(i, &read_fds))
+            if (FD_ISSET(i, &(iom->read_fds)))
             {
                 DEBUG_PRINT(("%d is set!!!!!!!\n", i));
                 if (i == listener)

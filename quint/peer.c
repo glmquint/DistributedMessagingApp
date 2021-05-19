@@ -12,9 +12,9 @@
 // #include "vector.h"
 #include "Include.h"
 
-#define TIMEOUT 100000              /*tempo che il peer aspetta per ricevere la risposta al boot dal server*/
+#define TIMEOUT 1              /*tempo che il peer aspetta per ricevere la risposta al boot dal server*/
                                     // se si usa usleep(), indica i microsecondi
-#define DEBUG_OFF
+#define DEBUG_ON
 
 #ifdef DEBUG_ON
 # define DEBUG_PRINT(x) printf x
@@ -71,6 +71,9 @@ void sPeer_serverBoot(char *ds_addr, int ds_port)
     char* token;
     const char delim[2] = ":";
 
+    struct timeval tv;
+    fd_set read_fd_boot;
+
     sprintf(tmp, "%d", sPeer.port);
     strcpy(msg, tmp);
 
@@ -80,31 +83,34 @@ void sPeer_serverBoot(char *ds_addr, int ds_port)
     strcpy(sPeer.ds_ip, ds_addr);
     sPeer.ds_port = ds_port;
 
-    sd = socket(AF_INET, SOCK_DGRAM | SOCK_NONBLOCK, 0);
-
-    memset(&srv_addr, 0, sizeof(srv_addr));
-    srv_addr.sin_family = AF_INET;
-    srv_addr.sin_port = htons(ds_port);
-    inet_pton(AF_INET, ds_addr, &srv_addr.sin_addr);
-
-    addrlen = sizeof(srv_addr);
-
     do
     {
+        sd = socket(AF_INET, SOCK_DGRAM | SOCK_NONBLOCK, 0);
+
+        memset(&srv_addr, 0, sizeof(srv_addr));
+        srv_addr.sin_family = AF_INET;
+        srv_addr.sin_port = htons(ds_port);
+        inet_pton(AF_INET, ds_addr, &srv_addr.sin_addr);
+
+        addrlen = sizeof(srv_addr);
+
+        FD_ZERO(&read_fd_boot);
+        FD_SET(sd, &read_fd_boot);
+
+        tv.tv_sec = TIMEOUT;
+        tv.tv_usec = 0;
         SCREEN_PRINT(("Invio il messaggio di boot\n"));
         ret = sendto(sd, msg, BOOT_MSG, 0, (struct sockaddr *)&srv_addr, sizeof(srv_addr));
         if (ret < 0) {
             perror("Errore nell'invio: ");
             exit(1);
         }
-        #ifdef DEBUG_ON
-        usleep(TIMEOUT); // FIXUP: maybe use a select with timeout, not to block on this 
-        #else
-        sleep(1);
-        #endif
-        ret = recvfrom(sd, (void*) &lmsg, sizeof(uint16_t), 0, (struct sockaddr *)&srv_addr, &addrlen);
-        //se dopo aver aspettato il timeout non ricevo riposta riinvio il messaggio
-    } while (ret < 0);
+
+        ret = select(sd + 1, &read_fd_boot, NULL, NULL, &tv);
+        DEBUG_PRINT(("select returned: %d\n", ret));
+
+    } while (ret <= 0);
+    ret = recvfrom(sd, (void*) &lmsg, sizeof(uint16_t), 0, (struct sockaddr *)&srv_addr, &addrlen);
 
     SCREEN_PRINT(("Richiesta di boot accettata\n"));
     len = ntohs(lmsg);
@@ -118,15 +124,14 @@ void sPeer_serverBoot(char *ds_addr, int ds_port)
     }
     DEBUG_PRINT(("buffer recieved: %s\n", buffer));
     sscanf(buffer, "%d %s", &num, neighbors_list);
-    SCREEN_PRINT(("Answer ricevuta: %d %s\n\n", num, neighbors_list));
 
-    //FIXUP: actually parse and add the new neighbor_list in the form `3 :123:234:345
+    SCREEN_PRINT(("Ricevuti i %d nuovi vicini: %s\n", num, neighbors_list));
 
     // first token
     token = strtok(neighbors_list, delim);
     // walk through the other tokens
     while (token != NULL) {
-        DEBUG_PRINT(("%s\n", token));
+        // DEBUG_PRINT(("%s\n", token));
         CVECTOR_ADD((sPeer.vicini), atoi(token));
         token = strtok(NULL, delim);
     }
