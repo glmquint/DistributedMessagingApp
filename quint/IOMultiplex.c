@@ -100,7 +100,8 @@ void IOMultiplex(int port,
                 }
                 else if (i == STDIN)
                 {
-                    handleSTDIN();
+                    fgets(buffer, 100, stdin);
+                    handleSTDIN(buffer);
                 }
                 else if (i == boot)
                 {

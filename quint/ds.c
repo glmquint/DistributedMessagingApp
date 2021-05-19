@@ -24,7 +24,7 @@
 
 #define STDIN 0
 #define BOOT_MSG 6  //"10000\0"
-#define BOOT_RESP 12 //"10001 10002\0"
+#define BOOT_RESP 12 //"10001 10002\0" //FIXUP: clean
 #define REQ_LEN 6 //RSTOP\0 REQVI\0
 
 struct DiscoveryServer {
@@ -58,7 +58,7 @@ void Ds_restituisciVicini(int porta)
     struct Peer *pp, *prevp;
     int porta1, porta2;
 
-   SCREEN_PRINT(("Stabilisco i vicini del peer %d\n", porta));
+    SCREEN_PRINT(("Stabilisco i vicini del peer %d\n", porta));
     prevp = 0;
     pp = RegistroPeer.lista_peer;
     while (pp != 0)
@@ -68,7 +68,7 @@ void Ds_restituisciVicini(int porta)
         prevp = pp;
         pp = pp->next_peer;
         if(prevp->porta >= pp->porta){
-           SCREEN_PRINT(("Peer non registrato\n"));
+            SCREEN_PRINT(("Peer non registrato\n"));
             return;
         }
     }
@@ -82,7 +82,7 @@ void Ds_restituisciVicini(int porta)
     if(porta1 == porta2) porta2 = 0;
     
     //una volta trovate le 2 porte più vicine le restituisco come stringa
-   SCREEN_PRINT(("Vicini impostati: %d %d\n\n", porta1, porta2));
+    SCREEN_PRINT(("Vicini impostati: %d %d\n\n", porta1, porta2));
     sprintf(RegistroPeer.boot_vicini, "%d %d", porta1, porta2);
     */
 }
@@ -90,9 +90,9 @@ void Ds_restituisciVicini(int porta)
 //funzione che stampa nel dettaglio le operazioni del Ds
 void Ds_help()
 {
-   SCREEN_PRINT(("showpeers --> mostra l’elenco dei peer connessi al network (IP e porta)\n\n"));
-    SCREEN_PRINT(("showneighbor <peer> --> mostra i neighbor di un peer specificato come parametro opzionale. Se non c’è il parametro, il comando mostra i neighbor di ogni peer\n\n"));
-   SCREEN_PRINT(("esc --> termina  il  DS. La terminazione del DS causa la terminazione di tutti i peer. Opzionalmente, prima di chiudersi, i peerpossono salvare le loro informazioni su un file, ricaricato nel momento in cui un peer torna a far parte del network (esegue il boot).\n\n"));
+    SCREEN_PRINT(("showpeers --> mostra l’elenco dei peer connessi al network (IP e porta)\n\n"));
+     SCREEN_PRINT(("showneighbor <peer> --> mostra i neighbor di un peer specificato come parametro opzionale. Se non c’è il parametro, il comando mostra i neighbor di ogni peer\n\n"));
+    SCREEN_PRINT(("esc --> termina  il  DS. La terminazione del DS causa la terminazione di tutti i peer. Opzionalmente, prima di chiudersi, i peerpossono salvare le loro informazioni su un file, ricaricato nel momento in cui un peer torna a far parte del network (esegue il boot).\n\n"));
 }
 
 
@@ -100,10 +100,10 @@ void Ds_help()
 //funzione che mostra la lista di tutti i peer connessi
 void Ds_showpeers()
 {
-   SCREEN_PRINT(("Questi sono i peers della rete:\n"));
+    SCREEN_PRINT(("Questi sono i peers della rete:\n"));
     for (int i = 0; i < VECTOR_TOTAL((peerRegister.peers)); i++) {
         struct PeerRecord* peer_r = VECTOR_GET((peerRegister.peers), struct PeerRecord*, i);
-       SCREEN_PRINT(("[%d]: %d\n", i, peer_r->port));
+        SCREEN_PRINT(("[%d]: %d\n", i, peer_r->port));
     }
 
 }
@@ -114,9 +114,9 @@ void Ds_showneighbor(int peer)
     for (int i = 0; i < VECTOR_TOTAL((peerRegister.peers)); i++) {
         struct PeerRecord* peer_r = VECTOR_GET((peerRegister.peers), struct PeerRecord*, i);
         if (peer < 0 || peer == peer_r->port) {
-           SCREEN_PRINT(("showing peer: %d\nHis neighbors are:\n", peer_r->port));
+            SCREEN_PRINT(("showing peer: %d\nHis neighbors are:\n", peer_r->port));
             for (int j = 0; j < CVECTOR_TOTAL((peer_r->neighbors)); j++) {
-               SCREEN_PRINT(("[%d] %d\n", j, CVECTOR_GET((peer_r->neighbors), int, j)));
+                SCREEN_PRINT(("[%d] %d\n", j, CVECTOR_GET((peer_r->neighbors), int, j)));
             }
         }
     }
@@ -143,7 +143,7 @@ void Ds_esc()
         peer_addr.sin_port = htons(pp->porta);
         inet_pton(AF_INET, "127.0.0.1", &peer_addr.sin_addr);
 
-       SCREEN_PRINT(("Invio al peer %d il messaggio DSTOP\n", pp->porta));
+        SCREEN_PRINT(("Invio al peer %d il messaggio DSTOP\n", pp->porta));
         ret = connect(sd, (struct sockaddr*)&peer_addr, sizeof(peer_addr));
         if(ret < 0){
             perror("Errore in fase di connessione:");
@@ -165,14 +165,13 @@ void Ds_esc()
 }
 
 //funzione che stabilisce le funzioni da chiamare in base all'input dell'utente
-void Ds_menu()
+void Ds_menu(char* buffer)
 {
-    char buffer[20], tmp[20];
+    char tmp[20];
     int peer;
 
-    fgets(buffer, 100, stdin);
     sscanf(buffer, "%s", tmp);
-   SCREEN_PRINT(("\n"));
+    SCREEN_PRINT(("\n"));
     if (strcmp("help", tmp) == 0)
     {
         Ds_help();
@@ -194,9 +193,9 @@ void Ds_menu()
     }
     else
     {
-       SCREEN_PRINT(("cmd: %s\nOpzione non valida\n\n", tmp));
+        SCREEN_PRINT(("cmd: %s\nOpzione non valida\n\n", tmp));
     }
-   //SCREEN_PRINT(("\n>> "));
+   // SCREEN_PRINT(("\n>> "));
 }
 
 //FIXUP: delete this as we shouldn't need it. It's all handled by void Ds_peerRegistration(int sd)
@@ -222,7 +221,7 @@ void Ds_menu()
     {
         if (prevp->porta == porta)
         {
-           SCREEN_PRINT(("Peer %d non aggiunto alla lista perchè già presente\n", porta));
+            SCREEN_PRINT(("Peer %d non aggiunto alla lista perchè già presente\n", porta));
         }
         prevp->next_peer = new_peer;
         new_peer->prev_peer = prevp;
@@ -248,7 +247,7 @@ void Ds_menu()
     RegistroPeer.lista_peer->prev_peer = prevp;
     prevp->next_peer = RegistroPeer.lista_peer;
     RegistroPeer.numero_peer++;
-   SCREEN_PRINT(("Peer %d aggiunto correttamente alla lista dei peer connessi\n", porta));
+    SCREEN_PRINT(("Peer %d aggiunto correttamente alla lista dei peer connessi\n", porta));
     
 }*/
 
@@ -260,7 +259,7 @@ void Ds_rimuoviPeer(int porta)
     
     struct Peer *pp, *prevp;
 
-   SCREEN_PRINT(("Rimuovo il peer %d dalla lista dei peer\n", porta));
+    SCREEN_PRINT(("Rimuovo il peer %d dalla lista dei peer\n", porta));
     prevp = 0;
     pp = RegistroPeer.lista_peer;
 
@@ -368,7 +367,7 @@ void sendNeighborsUpdate(int peer, cvector new_neighbors)
 /*
     strcpy(buffer, RegistroPeer.boot_vicini);
 
-   SCREEN_PRINT(("Comunico al peer %d i suoi nuovi vicini\n\n", peer));
+    SCREEN_PRINT(("Comunico al peer %d i suoi nuovi vicini\n\n", peer));
     ret = send(sd, (void *)buffer, BOOT_RESP, 0);
     if (ret < 0)
     {
@@ -403,7 +402,7 @@ void Ds_peerRegistration(int sd)
         exit(1);
     }
     sscanf(buffer, "%d", &new_peer_port);
-   SCREEN_PRINT(("Gestisco il boot del peer %d\n", new_peer_port));
+    SCREEN_PRINT(("Gestisco il boot del peer %d\n", new_peer_port));
 
     peers_num = VECTOR_TOTAL((peerRegister.peers));
 
@@ -477,7 +476,7 @@ void Ds_handleDisconnectReq(int sd)
     }
 
     disconnecting_peer_port = ntohs(lmsg);
-   SCREEN_PRINT(("Gestisco la disconnessione del peer %d\n", disconnecting_peer_port));
+    SCREEN_PRINT(("Gestisco la disconnessione del peer %d\n", disconnecting_peer_port));
 
     DEBUG_PRINT(("This is a description of the disconnecting peer:\n"));
     #ifdef DEBUG_ON
@@ -567,7 +566,7 @@ void DS_handleTCP(char* buffer, int sd)
     if (strcmp(buffer, "RSTOP") == 0) //messaggio di disconnessione da parte di un peer
         Ds_handleDisconnectReq(sd);
     else {
-       SCREEN_PRINT(("Ricevuto messaggio non valido\n"));
+        SCREEN_PRINT(("Ricevuto messaggio non valido\n"));
        DEBUG_PRINT(("ricevuto: %s", buffer));
     }
 }
@@ -578,7 +577,7 @@ int main(int argc, char *argv[])
 {
     Ds_initialize(argv[1]);
     Ds_help();
-   //SCREEN_PRINT(("\n>> "));
+   // SCREEN_PRINT(("\n>> "));
     IOMultiplex(DiscoveryServer.port, &iom, true, Ds_menu, Ds_peerRegistration, DS_handleTCP);
     return 0;
 }
