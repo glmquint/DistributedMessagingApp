@@ -452,7 +452,7 @@ void RegistroGenerale_ricevoRegistriRichiesti(int sd)
     ret = recv(sd, (void *)&lmsg, sizeof(uint16_t), 0);
     if (ret < 0)
     {
-        perror("Errore in fase di ricezione: ");
+        perror("Errore in fase di ricezione1: ");
         exit(1);
     }
     RegistroGenerale.numero_registri_richiesti = ntohs(lmsg);
@@ -464,14 +464,14 @@ void RegistroGenerale_ricevoRegistriRichiesti(int sd)
         ret = recv(sd, (void *)&lmsg, sizeof(uint16_t), 0);
         if (ret < 0)
         {
-            perror("Errore in fase di ricezione: ");
+            perror("Errore in fase di ricezione2: ");
             exit(1);
         }
         len = ntohs(lmsg);
         ret = recv(sd, (void *)buffer, len, 0);
         if (ret < 0)
         {
-            perror("Errore in fase di ricezione: ");
+            perror("Errore in fase di ricezione3: ");
             exit(1);
         }
         sscanf(buffer, "%d %d %d %d %d %d", &tmp_mday, &tmp_mon, &tmp_year, &nuovi_casi, &tamponi, &completo);

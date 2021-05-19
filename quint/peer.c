@@ -22,6 +22,8 @@
 # define DEBUG_PRINT(x) do {} while (0)
 #endif
 
+#define SCREEN_PRINT(x) printf("\r"); printf x; printf("\n>> "); fflush(stdout);
+
 void sPeer_initialize(char* port)
 {
     sscanf(port, "%d", &sPeer.port);
@@ -36,22 +38,22 @@ void sPeer_initialize(char* port)
 //funzione che stampa nel dettaglio le operazioni del peer
 void sPeer_help()
 {
-    printf("\nhelp --> mostra i dettagli sui comandi accettati\n\n");
-    printf("start DS_addr DS_port --> richiede al DS,in ascolto all’indirizzo DS_addr:DS_port, la connessione al network. Il DS registra il peer e gli invia la lista di neighbor. Se il peer è il primo a connettersi, la lista sarà vuota. Il DS avrà cura di integrare il peer nel network a mano a mano che altri peer invocheranno la star\n\n");
-    printf("add type quantity --> aggiunge al register della data corrente l’evento type con quantità quantity. Questo comando provoca la memorizzazione di una nuova entry nel peer\n\n");
-    printf("get aggr type period --> effettua una richiesta di elaborazione per ottenere il dato aggregato aggr sui dati relativi a un lasso temporale d’interesse period sulle entry di tipo type. Considerando tali dati su scala giornaliera. Le aggregazioni aggr calcolabili sono il totale e la variazione. Il parametro period è espresso come ‘dd1:mm1:yyyy1-dd2:mm2:yyyy2’, dove con 1 e 2 si indicano, rispettivamente, la data più remota e più recente del lasso temporale d’interesse. Una delle due date può valere ‘*’. Se è la prima, non esiste una data che fa da lower bound. Viceversa, non c’è l’upper bound e il calcolo va fatto fino alla data più recente (con register chiusi). Il parametro period puòmancare, in quel caso il calcolo si fa su tutti i dati. \n\n");
-    printf("stop --> il peer richiede una disconnessione dal network. Il comando stop provoca l’invio ai neighbordi tutte le entry registrate dall’avvio. Il peer contatta poi il DS per comunicare la volontà di disconnettersi. Il DS aggiorna i registri di prossimità rimuovendo il peer. Se la rimozione del peer causa l’isolamento di una un’interaparte del network, il DS modifica i registri di prossimitàdi alcuni peer, affinché questo non avvenga\n\n");
+    SCREEN_PRINT(("\nhelp --> mostra i dettagli sui comandi accettati\n\n"));
+    SCREEN_PRINT(("start DS_addr DS_port --> richiede al DS,in ascolto all’indirizzo DS_addr:DS_port, la connessione al network. Il DS registra il peer e gli invia la lista di neighbor. Se il peer è il primo a connettersi, la lista sarà vuota. Il DS avrà cura di integrare il peer nel network a mano a mano che altri peer invocheranno la star\n\n"));
+    SCREEN_PRINT(("add type quantity --> aggiunge al register della data corrente l’evento type con quantità quantity. Questo comando provoca la memorizzazione di una nuova entry nel peer\n\n"));
+    SCREEN_PRINT(("get aggr type period --> effettua una richiesta di elaborazione per ottenere il dato aggregato aggr sui dati relativi a un lasso temporale d’interesse period sulle entry di tipo type. Considerando tali dati su scala giornaliera. Le aggregazioni aggr calcolabili sono il totale e la variazione. Il parametro period è espresso come ‘dd1:mm1:yyyy1-dd2:mm2:yyyy2’, dove con 1 e 2 si indicano, rispettivamente, la data più remota e più recente del lasso temporale d’interesse. Una delle due date può valere ‘*’. Se è la prima, non esiste una data che fa da lower bound. Viceversa, non c’è l’upper bound e il calcolo va fatto fino alla data più recente (con register chiusi). Il parametro period puòmancare, in quel caso il calcolo si fa su tutti i dati. \n\n"));
+    SCREEN_PRINT(("stop --> il peer richiede una disconnessione dal network. Il comando stop provoca l’invio ai neighbordi tutte le entry registrate dall’avvio. Il peer contatta poi il DS per comunicare la volontà di disconnettersi. Il DS aggiorna i registri di prossimità rimuovendo il peer. Se la rimozione del peer causa l’isolamento di una un’interaparte del network, il DS modifica i registri di prossimitàdi alcuni peer, affinché questo non avvenga\n\n"));
 }
 
 void sPeer_showNeighbors()
 {
     #ifdef DEBUG_ON
-    printf("\nshowing peer: %d\nHis neighbors are:\n", sPeer.port);
+    SCREEN_PRINT(("\nshowing peer: %d\nHis neighbors are:\n", sPeer.port));
     for (int i = 0; i < CVECTOR_TOTAL((sPeer.vicini)); i++) {
-        printf("[%d] %d\n", i, CVECTOR_GET((sPeer.vicini), int, i));
+        SCREEN_PRINT(("[%d] %d\n", i, CVECTOR_GET((sPeer.vicini), int, i)));
     }
     #else
-    printf("Opzione non valida (Are you developer?)\n\n");
+    SCREEN_PRINT(("Opzione non valida (Are you developer?)\n\n"));
     #endif
 }
 
@@ -89,7 +91,7 @@ void sPeer_serverBoot(char *ds_addr, int ds_port)
 
     do
     {
-        printf("Invio il messaggio di boot\n");
+        SCREEN_PRINT(("Invio il messaggio di boot\n"));
         ret = sendto(sd, msg, BOOT_MSG, 0, (struct sockaddr *)&srv_addr, sizeof(srv_addr));
         if (ret < 0) {
             perror("Errore nell'invio: ");
@@ -100,7 +102,7 @@ void sPeer_serverBoot(char *ds_addr, int ds_port)
         //se dopo aver aspettato il timeout non ricevo riposta riinvio il messaggio
     } while (ret < 0);
 
-    printf("Richiesta di boot accettata\n");
+    SCREEN_PRINT(("Richiesta di boot accettata\n"));
     len = ntohs(lmsg);
     DEBUG_PRINT(("len is: %d\n", len));
     ret = recvfrom(sd, (void*)buffer, len, 0, (struct sockaddr *)&srv_addr, &addrlen);
@@ -112,7 +114,7 @@ void sPeer_serverBoot(char *ds_addr, int ds_port)
     }
     DEBUG_PRINT(("buffer recieved: %s\n", buffer));
     sscanf(buffer, "%d %s", &num, neighbors_list);
-    printf("Answer ricevuta: %d %s\n\n", num, neighbors_list);
+    SCREEN_PRINT(("Answer ricevuta: %d %s\n\n", num, neighbors_list));
 
     //FIXUP: actually parse and add the new neighbor_list in the form `3 :123:234:345
 
@@ -189,7 +191,7 @@ int sPeer_richiestaAggregazioneNeighbor(char *aggr, char *type, char *period)
             exit(-1);
         }
 
-        printf("Richiedo al neighbor %d se ha l'aggregazione\n", (int) CVECTOR_GET((sPeer.vicini), int, i));
+        SCREEN_PRINT(("Richiedo al neighbor %d se ha l'aggregazione\n", (int) CVECTOR_GET((sPeer.vicini), int, i)));
 
         ret = recv(sd, (void *)&size_risultato_ricevuto, sizeof(uint16_t), 0);
         if (ret < 0)
@@ -202,7 +204,7 @@ int sPeer_richiestaAggregazioneNeighbor(char *aggr, char *type, char *period)
         size_risultato = ntohs(size_risultato_ricevuto);
         if (size_risultato != 0)
         {
-            printf("Il neighbor ha l'aggregazione\n");
+            SCREEN_PRINT(("Il neighbor ha l'aggregazione\n"));
             for (i = 0; i < size_risultato; i++)
             {
                 ret = recv(sd, (void *)&lmsg, sizeof(uint16_t), 0);
@@ -227,7 +229,7 @@ int sPeer_richiestaAggregazioneNeighbor(char *aggr, char *type, char *period)
         }
         else
         {
-            printf("Il neighbor non ha l'aggregazione richiesta\n");
+            SCREEN_PRINT(("Il neighbor non ha l'aggregazione richiesta\n"));
         }
         close(sd);
     }
@@ -244,7 +246,7 @@ void sPeer_gestioneRichiestaAggregazione(int sd)
     char aggr[20], type[20], period[20];
     struct Aggregazione *pp;
 
-    printf("Ricevuta una richiesta di aggregazione\n");
+    SCREEN_PRINT(("Ricevuta una richiesta di aggregazione\n"));
     ret = recv(sd, (void *)&lmsg, sizeof(uint16_t), 0);
     if (ret < 0)
     {
@@ -264,7 +266,7 @@ void sPeer_gestioneRichiestaAggregazione(int sd)
     pp = ArchivioAggregazioni_controlloPresenzaAggregazione(aggr, type, period);
     if (pp)
     {
-        printf("Invio l'aggregazione trovata al richiedente\n\n");
+        SCREEN_PRINT(("Invio l'aggregazione trovata al richiedente\n\n"));
         size_risultato = pp->size_risultato;
         size_risultato_inviato = htons(size_risultato);
         ret = send(sd, (void *)&size_risultato_inviato, sizeof(uint16_t), 0);
@@ -296,7 +298,7 @@ void sPeer_gestioneRichiestaAggregazione(int sd)
     }
     else
     {
-        printf("Dico al richiedente che non ho trovato l'aggregazione\n\n");
+        SCREEN_PRINT(("Dico al richiedente che non ho trovato l'aggregazione\n\n"));
         size_risultato = 0;
         size_risultato = htons(size_risultato);
         ret = send(sd, (void *)&size_risultato, sizeof(uint16_t), 0);
@@ -327,7 +329,7 @@ void sPeer_richiestaRegistri()
         peer_addr.sin_port = htons(sPeer.peer_da_contattare[i]);
         inet_pton(AF_INET, "127.0.0.1", &peer_addr.sin_addr);
 
-        printf("Richiedo al peer %d i Registri\n", sPeer.peer_da_contattare[i]);
+        SCREEN_PRINT(("Richiedo al peer %d i Registri\n", sPeer.peer_da_contattare[i]));
 
         ret = connect(sd, (struct sockaddr *)&peer_addr, sizeof(peer_addr));
         if (ret < 0)
@@ -371,7 +373,7 @@ void sPeer_disconnessioneNetwork()
     ds_addr.sin_port = htons(sPeer.ds_port);
     inet_pton(AF_INET, sPeer.ds_ip, &ds_addr.sin_addr);
 
-    printf("Invio al Ds la richiesta di disconnessione\n");
+    SCREEN_PRINT(("Invio al Ds la richiesta di disconnessione\n"));
     ret = connect(sd, (struct sockaddr *)&ds_addr, sizeof(ds_addr));
     if (ret < 0)
     {
@@ -407,7 +409,7 @@ void sPeer_disconnessioneNetwork()
 //funzione che gestisce la ricezione di un messaggio di stop da parte di un neighbor peer
 void sPeer_gestisciStop(int sd)
 {
-    printf("Ho ricevuto una richiesta di stop da parte di un vicino\n");
+    SCREEN_PRINT(("Ho ricevuto una richiesta di stop da parte di un vicino\n"));
     RegistroGenerale_ricevoRegistriRichiesti(sd);                          //ricevo i registri dal peer che si sta disconettendo
     RegistroGenerale_modificoIlRegistroGeneraleInBaseAiRegistriRicevuti(); //me li salvo nel RegistroGenerale
 
@@ -434,7 +436,7 @@ void sPeer_stop()
         peer_addr.sin_port = htons(vicino);
         inet_pton(AF_INET, "127.0.0.1", &peer_addr.sin_addr);
 
-        printf("Invio al neighbor Peer %d i miei registri\n", vicino);
+        SCREEN_PRINT(("Invio al neighbor Peer %d i miei registri\n", vicino));
         ret = connect(sd, (struct sockaddr *)&peer_addr, sizeof(peer_addr));
         if (ret < 0)
         {
@@ -469,8 +471,8 @@ void sPeer_stop()
     }
 
     sPeer_disconnessioneNetwork();
-    FileManager_salvaArchivioAggregazioni();
-    FileManager_salvaRegistro(0);
+    //FileManager_salvaArchivioAggregazioni();
+    //FileManager_salvaRegistro(0);
     //Let the OS free all used memory...
     exit(0);
 }
@@ -489,13 +491,13 @@ void sPeer_aggiungiPeerDaContattare(int peer)
     }
     if (!trovato)
     {
-        printf("Aggiungo il peer %d alla lista dei peer da contattare\n", peer);
+        SCREEN_PRINT(("Aggiungo il peer %d alla lista dei peer da contattare\n", peer));
         sPeer.peer_da_contattare[sPeer.numero_peer_da_contattare] = peer;
         sPeer.numero_peer_da_contattare++;
     }
     else
     {
-        printf("Peer %d non aggiunto alla lista dei peer da contattare perchè già presente\n", peer);
+        SCREEN_PRINT(("Peer %d non aggiunto alla lista dei peer da contattare perchè già presente\n", peer));
     }
 }
 
@@ -511,7 +513,7 @@ void sPeer_richiestaFlood(int requester)
     pp = RegistroGenerale.lista_date_necessarie;
     if (pp == 0)
     {
-        printf("Non inoltro la richiesta di flood perchè la lista delle date necessarie risulta vuota\n");
+        SCREEN_PRINT(("Non inoltro la richiesta di flood perchè la lista delle date necessarie risulta vuota\n"));
         return;
     }
 
@@ -539,7 +541,7 @@ void sPeer_richiestaFlood(int requester)
         vicini_addr.sin_port = htons(i_esimo_vicino);
         inet_pton(AF_INET, "127.0.0.1", &vicini_addr.sin_addr);
 
-        printf("Inoltro la richiesta di Flood al peer %d\n", i_esimo_vicino);
+        SCREEN_PRINT(("Inoltro la richiesta di Flood al peer %d\n", i_esimo_vicino));
 
         ret = connect(sd, (struct sockaddr *)&vicini_addr, sizeof(vicini_addr));
         if (ret < 0)
@@ -592,7 +594,7 @@ void sPeer_invioRispostaFlood()
     char buffer[1024];
 
     sd = sPeer.sd_flood;
-    printf("Invio la risposta indietro a chi mi aveva inoltrato una richiesta di Flood\n\n");
+    SCREEN_PRINT(("Invio la risposta indietro a chi mi aveva inoltrato una richiesta di Flood\n\n"));
     strcpy(buffer, "FLORE");
 
     ret = send(sd, (void *)buffer, REQ_LEN, 0);
@@ -627,7 +629,7 @@ void sPeer_ricezioneRispostaFlood(int sd)
 {
     int ret, numero_peer_tmp, i, peer_tmp;
     uint16_t lmsg, peer;
-    printf("Ricevo la risposta ad una richiesta di Flood\n");
+    SCREEN_PRINT(("Ricevo la risposta ad una richiesta di Flood\n"));
     ret = recv(sd, (void *)&lmsg, sizeof(uint16_t), 0);
     if (ret < 0)
     {
@@ -656,7 +658,7 @@ void sPeer_ricezioneRispostaFlood(int sd)
                                              //di flood ti hanno risposto quindi puoi proseguire con la richiesta dei registri ai vari peer
     {
         sPeer.richiesta_in_gestione = 0;
-        printf("Ho ricevuto tutte le risposte che mi servivano\n\n");
+        SCREEN_PRINT(("Ho ricevuto tutte le risposte che mi servivano\n\n"));
         if (sPeer.port == sPeer.requester) //se la mia port è uguale al requester significa che io sono chi ha fatto la richiesta
                                                           //in origine se non è così devo inviare la risposta a chi mi ha inoltrato la richiesta
             sPeer_richiestaRegistri();
@@ -671,7 +673,7 @@ void sPeer_sendFlood()
     char buffer[1024], numero_richiesta[10];
     int i;
     //imposto la reichiesta_id
-    printf("Inizializzo una richiesta di Flood\n");
+    SCREEN_PRINT(("Inizializzo una richiesta di Flood\n"));
     sPeer.requester = sPeer.port;
     sprintf(buffer, "%d", sPeer.port);
     strcat(buffer, " ");
@@ -696,7 +698,7 @@ void sPeer_sendFlood()
     }
 
     else
-        printf("Attendo risposta\n\n");
+        SCREEN_PRINT(("Attendo risposta\n\n"));
 }
 
 //funzione che controlla le richieste di Flood in ingresso. Se non c'è una richiesta in gestione la richiesta viene accettata
@@ -737,7 +739,7 @@ int sPeer_verificaRichiestaRicevuta(char richiesta_id[50], int sd)
                 exit(1);
             }
         }
-        printf("La richiesta è uguale a quella in gestione rispondo che non ho nulla da inviare\n\n");
+        SCREEN_PRINT(("La richiesta è uguale a quella in gestione rispondo che non ho nulla da inviare\n\n"));
         strcpy(buffer, "FLORE");
         ret = send(sd, (void *)buffer, REQ_LEN, 0);
         if (ret < 0)
@@ -759,7 +761,7 @@ int sPeer_verificaRichiestaRicevuta(char richiesta_id[50], int sd)
     }
     else
     {
-        printf("La richiesta è valida ed entrerà in gestione\n");
+        SCREEN_PRINT(("La richiesta è valida ed entrerà in gestione\n"));
         strcpy(sPeer.richiesta_id, richiesta_id);
         sPeer.richiesta_in_gestione = 1;
         sPeer.risposte_mancanti = 0;
@@ -797,7 +799,7 @@ void sPeer_gestioneFlood(int sd)
     sscanf(buffer, "%s %s %d", richiesta_id, tmp, &requester);
     strcat(richiesta_id, " ");
     strcat(richiesta_id, tmp);
-    printf("Mi è arrivata una richiesta di Flood da %d\n", requester);
+    SCREEN_PRINT(("Mi è arrivata una richiesta di Flood da %d\n", requester));
 
     if (sPeer_verificaRichiestaRicevuta(richiesta_id, sd)) //se la richiesta è valida si continua se no ci si ferma
         return;
@@ -823,7 +825,7 @@ void sPeer_menu()
 
     fgets(buffer, 100, stdin);
     sscanf(buffer, "%s", tmp);
-    printf("\n");
+    SCREEN_PRINT(("\n"));
     if (strcmp("help", tmp) == 0)
     {
         sPeer_help();
@@ -836,7 +838,7 @@ void sPeer_menu()
         }
         else
         {
-            printf("Opzione non valida\n\n");
+            SCREEN_PRINT(("Opzione non valida\n\n"));
         }
     }
     else if (strcmp("add", tmp) == 0)
@@ -850,7 +852,7 @@ void sPeer_menu()
                     RegistroGiornaliero_aggiungiEntry(type, quantity);
                 }
                 else
-                    printf("Opzione non valida\n\n");
+                    SCREEN_PRINT(("Opzione non valida\n\n"));
             }
             else if (strcmp(type, "nuovo") == 0)
             {
@@ -859,13 +861,13 @@ void sPeer_menu()
                     RegistroGiornaliero_aggiungiEntry(type, quantity);
                 }
                 else
-                    printf("Opzione non valida\n\n");
+                    SCREEN_PRINT(("Opzione non valida\n\n"));
             }
             else
-                printf("Tipo non valido\n\n");
+                SCREEN_PRINT(("Tipo non valido\n\n"));
         }
         else
-            printf("Opzione non valida\n\n");
+            SCREEN_PRINT(("Opzione non valida\n\n"));
     }
     else if (strcmp("get", tmp) == 0)
     {
@@ -883,7 +885,7 @@ void sPeer_menu()
                     ArchivioAggregazioni_gestioneAggregazione(aggr, type, period);
                 }
                 else
-                    printf("Opzione non valida\n\n");
+                    SCREEN_PRINT(("Opzione non valida\n\n"));
             }
             else if (strcmp(type, "nuovo") == 0)
             {
@@ -897,13 +899,13 @@ void sPeer_menu()
                     ArchivioAggregazioni_gestioneAggregazione(aggr, type, period);
                 }
                 else
-                    printf("Opzione non valida\n\n");
+                    SCREEN_PRINT(("Opzione non valida\n\n"));
             }
             else
-                printf("Tipo non valido\n\n");
+                SCREEN_PRINT(("Tipo non valido\n\n"));
         }
         else
-            printf("Opzione non valida\n\n");
+            SCREEN_PRINT(("Opzione non valida\n\n"));
     }
     else if (strcmp("stop", tmp) == 0)
     {
@@ -915,17 +917,15 @@ void sPeer_menu()
     }
     else
     {
-        printf("Opzione non valida\n\n");
+        SCREEN_PRINT(("Opzione non valida\n\n"));
     }
 
-    printf("\n>> ");
-    fflush(stdout);
 }
 
 //funzone che gestisce l'arrivo di una richiesta di registri
 void sPeer_gestioneRichiestaRegistri(int sd)
 {
-    printf("Mi è arrivata una richiesta di Registri\n");
+    SCREEN_PRINT(("Mi è arrivata una richiesta di Registri\n"));
     RegistroGenerale_ricevoDateNecessarieECreoRegistri(sd);
     RegistroGenerale_modificoRegistriRichiesti();
     RegistroGenerale_invioRegistriRichiesti(sd);
@@ -962,7 +962,7 @@ void sPeer_gestisciNuoviVicini(int sd)
     }
     sscanf(buffer, "%d %s", &num, neighbors);
 
-    printf("Mi sono stati comunicati i %d nuovi vicini: %s\n\n", num, neighbors);
+    SCREEN_PRINT(("Mi sono stati comunicati i %d nuovi vicini: %s\n\n", num, neighbors));
     // il vecchio vettore verrà completamente sostituito
     CVECTOR_FREE((sPeer.vicini));
     cvector_init(&(sPeer.vicini));
@@ -985,7 +985,7 @@ void sPeer_gestisciNuoviVicini(int sd)
 //funzione che gestisce l'arrivo di un messaggio di stop da parte del Ds
 void sPeer_dsStop()
 {
-    printf("Mi arrivato un messaggio di stop da parte del Ds\n");
+    SCREEN_PRINT(("Mi arrivato un messaggio di stop da parte del Ds\n"));
     FileManager_salvaArchivioAggregazioni();
     FileManager_salvaRegistro(1);
     exit(0);
@@ -1008,7 +1008,7 @@ void sPeer_handleTCP(char* buffer, int sd)
     else if (strcmp(buffer, "DSTOP") == 0) //messaggio di stop da parte del DS
         sPeer_dsStop();
     else
-        printf("Ricevuto messaggio non valido\n");
+        SCREEN_PRINT(("Ricevuto messaggio non valido\n"));
 }
 
 void sPeer_handlSTDIN()
@@ -1032,8 +1032,6 @@ int main(int argc, char *argv[])
 
 
     sPeer_help();
-    printf("\n>> ");
-    fflush(stdout);
     #ifdef DEBUG_ON
     sPeer_serverBoot("127.0.0.1", 4242); // just to save time
     #endif

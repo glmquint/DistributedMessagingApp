@@ -10,6 +10,16 @@
 #include <stdbool.h>
 #include "IOMultiplex.h"
 
+#define DEBUG_OFF
+
+#ifdef DEBUG_ON
+# define DEBUG_PRINT(x) printf x
+#else
+# define DEBUG_PRINT(x) do {} while (0)
+#endif
+
+#define SCREEN_PRINT(x) printf("\r"); printf x; printf("\n>> ");
+
 //funzione che gestice l'IO del Ds ovvero si occupa di gestire le varie comunicazioni tra i suoi peer e l'input per mezzo della funzione select
 void IOMultiplex(int port, 
                 struct sIOMultiplexer* iom, 
@@ -69,12 +79,18 @@ void IOMultiplex(int port,
     while (1)
     {
         read_fds = iom->master;
-        if(select(iom->fdmax + 1, &read_fds, NULL, NULL, NULL) > 0 );
+        i = select(iom->fdmax + 1, &read_fds, NULL, NULL, NULL);
+        if (i < 0)
+        {
+            perror("select returned %d: ");
+            exit(1);
+        }
 
         for (i = 0; i <= iom->fdmax; i++)
         {
             if (FD_ISSET(i, &read_fds))
             {
+                DEBUG_PRINT(("%d is set!!!!!!!\n", i));
                 if (i == listener)
                 {
                     addrlen = sizeof(cl_addr);
@@ -100,7 +116,7 @@ void IOMultiplex(int port,
                         exit(1);
                     }
 
-                   handleTCP(buffer, i);
+                handleTCP(buffer, i);
                 }
             }
         }
