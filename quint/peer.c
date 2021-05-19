@@ -828,12 +828,11 @@ void sPeer_gestioneFlood(int sd)
 }
 
 //funzione che chiama le giuste funzione in base alle operazione richieste dall'utente
-void sPeer_menu()
+void sPeer_menu(char* buffer)
 {
-    char buffer[1024], ds_addr[20], type[20], aggr[20], period[50], tmp[20];
+    char ds_addr[20], type[20], aggr[20], period[50], tmp[20];
     int ds_port, quantity;
 
-    fgets(buffer, 100, stdin);
     sscanf(buffer, "%s", tmp);
     SCREEN_PRINT(("\n"));
     if (strcmp("help", tmp) == 0)
@@ -1021,10 +1020,9 @@ void sPeer_handleTCP(char* buffer, int sd)
         SCREEN_PRINT(("Ricevuto messaggio non valido\n"));
 }
 
-void sPeer_handlSTDIN()
+void sPeer_handlSTDIN(char* buffer)
 {
-    if (sPeer.richiesta_in_gestione == 0)
-        sPeer_menu();
+    sPeer_menu(buffer);
 }
 
 // non verrà mai chiamata se use_udp è posto a false in IOMultiplex,
