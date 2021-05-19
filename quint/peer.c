@@ -14,7 +14,7 @@
 
 #define TIMEOUT 100000              /*tempo che il peer aspetta per ricevere la risposta al boot dal server*/
                                     // se si usa usleep(), indica i microsecondi
-#define DEBUG_ON
+#define DEBUG_OFF
 
 #ifdef DEBUG_ON
 # define DEBUG_PRINT(x) printf x
@@ -97,7 +97,11 @@ void sPeer_serverBoot(char *ds_addr, int ds_port)
             perror("Errore nell'invio: ");
             exit(1);
         }
+        #ifdef DEBUG_ON
         usleep(TIMEOUT); // FIXUP: maybe use a select with timeout, not to block on this 
+        #else
+        sleep(1);
+        #endif
         ret = recvfrom(sd, (void*) &lmsg, sizeof(uint16_t), 0, (struct sockaddr *)&srv_addr, &addrlen);
         //se dopo aver aspettato il timeout non ricevo riposta riinvio il messaggio
     } while (ret < 0);
@@ -403,6 +407,7 @@ void sPeer_disconnessioneNetwork()
         perror("Errore in fase di ricezione: ");
         exit(1);
     }
+    close(sd);
 
 }
 
@@ -471,8 +476,8 @@ void sPeer_stop()
     }
 
     sPeer_disconnessioneNetwork();
-    //FileManager_salvaArchivioAggregazioni();
-    //FileManager_salvaRegistro(0);
+    FileManager_salvaArchivioAggregazioni();
+    FileManager_salvaRegistro(0);
     //Let the OS free all used memory...
     exit(0);
 }

@@ -11,7 +11,7 @@
 #include "vector.h"
 #include "IOMultiplex.h"
 
-#define DEBUG_OF
+#define DEBUG_ON
 
 #ifdef DEBUG_ON
 # define DEBUG_PRINT(x) printf x
@@ -49,7 +49,7 @@ void Ds_initialize(char* port)
     vector_init(&(peerRegister.peers));
 }
 
-
+// FIXUP: DELETE. shouldn't need that
 //funzione che imposta la stringa RegistroPeer.boot_vicini con i vicini del peer passato come parametro
 //l'implementazione della funzione stabilisce la topologie della rete
 void Ds_restituisciVicini(int porta)
