@@ -281,11 +281,7 @@ void ArchivioAggregazioni_precalcoloAggregazione(char *aggr, char *type, char *p
     {
         SCREEN_PRINT(("Il peer NON HA tutte le date necessarie per calcolare l'aggregazione\n"));
         SCREEN_PRINT(("Inoltro richiesta ai neighbor per l'aggregazione\n"));
-        if (sPeer_richiestaAggregazioneNeighbor(aggr, type, period))
-        {
-            return; //se i miei vicini mi passano l'aggregazione l'aggiungo all'ArchivioAggregazioni e la stampo
-        }
-        else
+        if (!sPeer_richiestaAggregazioneNeighbor(aggr, type, period)) 
         {
             SCREEN_PRINT(("Aggregazione non fornita dai neighbor\n"));
             strcpy(ArchivioAggregazioni.aggr, aggr);
@@ -472,7 +468,7 @@ int ArchivioAggregazioni_periodoValido(char *period)
 //funzione che gestisce la richiesta di aggregazione da input
 void ArchivioAggregazioni_gestioneAggregazione(char *aggr, char *type, char *period)
 {
-    DEBUG_PRINT(("richiesta aggregazione: %s, tipo: %s, periodo: %d", aggr, type, period));
+    DEBUG_PRINT(("richiesta aggregazione: %s, tipo: %s, periodo: %s", aggr, type, period));
     struct Aggregazione *pp;
     if (ArchivioAggregazioni_periodoValido(period)) //la periodoValido modifica la stringa period nel modo giusto
     {

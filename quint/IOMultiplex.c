@@ -24,7 +24,7 @@
 void IOMultiplex(int port, 
                 struct sIOMultiplexer* iom, 
                 bool use_udp, 
-                void (*handleSTDIN)(),
+                void (*handleSTDIN)(char* buffer),
                 void (*handleUDP)(int sd),
                 void (*handleTCP)(char* cmd, int sd))
 {

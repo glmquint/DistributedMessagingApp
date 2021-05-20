@@ -61,7 +61,7 @@ void sPeer_showNeighbors()
 void sPeer_serverBoot(char *ds_addr, int ds_port)
 {
     //faccio il boot
-    int ret, sd, num, len;
+    int ret, sd, num, len, i = 0;
     uint16_t lmsg;
     socklen_t addrlen;
     struct sockaddr_in srv_addr;
@@ -83,17 +83,17 @@ void sPeer_serverBoot(char *ds_addr, int ds_port)
     strcpy(sPeer.ds_ip, ds_addr);
     sPeer.ds_port = ds_port;
 
+    sd = socket(AF_INET, SOCK_DGRAM | SOCK_NONBLOCK, 0);
+
+    memset(&srv_addr, 0, sizeof(srv_addr));
+    srv_addr.sin_family = AF_INET;
+    srv_addr.sin_port = htons(ds_port);
+    inet_pton(AF_INET, ds_addr, &srv_addr.sin_addr);
+
+    addrlen = sizeof(srv_addr);
+
     do
     {
-        sd = socket(AF_INET, SOCK_DGRAM | SOCK_NONBLOCK, 0);
-
-        memset(&srv_addr, 0, sizeof(srv_addr));
-        srv_addr.sin_family = AF_INET;
-        srv_addr.sin_port = htons(ds_port);
-        inet_pton(AF_INET, ds_addr, &srv_addr.sin_addr);
-
-        addrlen = sizeof(srv_addr);
-
         FD_ZERO(&read_fd_boot);
         FD_SET(sd, &read_fd_boot);
 
@@ -109,15 +109,14 @@ void sPeer_serverBoot(char *ds_addr, int ds_port)
         ret = select(sd + 1, &read_fd_boot, NULL, NULL, &tv);
         DEBUG_PRINT(("select returned: %d\n", ret));
 
-    } while (ret <= 0);
+    } while (ret <= 0); // è presente un solo socket, quindi non è necessario verificare anche FD_ISSET(sd, &read_fds)
     ret = recvfrom(sd, (void*) &lmsg, sizeof(uint16_t), 0, (struct sockaddr *)&srv_addr, &addrlen);
 
     SCREEN_PRINT(("Richiesta di boot accettata\n"));
     len = ntohs(lmsg);
     DEBUG_PRINT(("len is: %d\n", len));
     ret = recvfrom(sd, (void*)buffer, len, 0, (struct sockaddr *)&srv_addr, &addrlen);
-    if (ret < 0 || ret < len)
-    {
+    if (ret < 0 || ret < len) {
         perror("Errore in fase di ricezione lunghezza messaggio: ");
         DEBUG_PRINT(("ret: %d", ret));
         exit(1);
@@ -130,10 +129,11 @@ void sPeer_serverBoot(char *ds_addr, int ds_port)
     // first token
     token = strtok(neighbors_list, delim);
     // walk through the other tokens
-    while (token != NULL) {
+    while (token != NULL && i < num) {
         // DEBUG_PRINT(("%s\n", token));
         CVECTOR_ADD((sPeer.vicini), atoi(token));
         token = strtok(NULL, delim);
+        i++;
     }
 
     close(sd);
@@ -156,9 +156,11 @@ int sPeer_richiestaAggregazioneNeighbor(char *aggr, char *type, char *period)
 
         sd = socket(AF_INET, SOCK_STREAM, 0);
 
+        int neighbor_port = (int) CVECTOR_GET((sPeer.vicini), int, i);
+
         memset(&vicini_addr, 0, sizeof(vicini_addr));
         vicini_addr.sin_family = AF_INET;
-        vicini_addr.sin_port = htons((int) CVECTOR_GET((sPeer.vicini), int, i));
+        vicini_addr.sin_port = htons(neighbor_port);
         inet_pton(AF_INET, "127.0.0.1", &vicini_addr.sin_addr);
 
         ret = connect(sd, (struct sockaddr *)&vicini_addr, sizeof(vicini_addr));
@@ -168,7 +170,7 @@ int sPeer_richiestaAggregazioneNeighbor(char *aggr, char *type, char *period)
             exit(-1);
         }
 
-        strcpy(buffer, "REQAG"); //REQA -> Richiesta Aggregazione
+        strcpy(buffer, "REQAG"); //REQAG -> Richiesta Aggregazione
 
         ret = send(sd, (void *)buffer, REQ_LEN, 0);
         if (ret < 0)
@@ -200,7 +202,7 @@ int sPeer_richiestaAggregazioneNeighbor(char *aggr, char *type, char *period)
             exit(-1);
         }
 
-        SCREEN_PRINT(("Richiedo al neighbor %d se ha l'aggregazione\n", (int) CVECTOR_GET((sPeer.vicini), int, i)));
+        SCREEN_PRINT(("Richiedo al neighbor %d se ha l'aggregazione\n", neighbor_port));
 
         ret = recv(sd, (void *)&size_risultato_ricevuto, sizeof(uint16_t), 0);
         if (ret < 0)
@@ -511,8 +513,8 @@ void sPeer_aggiungiPeerDaContattare(int peer)
     }
 }
 
-//funzione che manda i neighbor la richiesta di Flood
-void sPeer_richiestaFlood(int requester)
+//funzione che manda ai neighbor la richiesta di Flood
+void sPeer_richiestaFlood(int requester_port)
 {
     int sd, ret, len, i;
     struct sockaddr_in vicini_addr;
@@ -538,9 +540,8 @@ void sPeer_richiestaFlood(int requester)
     for (i = 0; i < CVECTOR_TOTAL((sPeer.vicini)); i++)
     {
         int i_esimo_vicino = CVECTOR_GET((sPeer.vicini), int, i);
-        if (requester == i_esimo_vicino || i_esimo_vicino == 0)
+        if (i_esimo_vicino == requester_port)
             continue; //non inoltro la richiesta a chi l'ha inoltrata a me anche se è un mio vicino
-        //i vicini == 0 non sono vicini reali
 
         sPeer.risposte_mancanti++;
 
@@ -698,7 +699,7 @@ void sPeer_sendFlood()
     for (i = 0; i < MAX_PEER_DA_CONTATTARE; i++)
         sPeer.peer_da_contattare[i] = 0;
     sPeer.numero_peer_da_contattare = 0;
-    sPeer_richiestaFlood(0);
+    sPeer_richiestaFlood(sPeer.port);
     //se la richiesta flood non invia a nessun vicino la richiesta le risposte mancanti saranno uguale a 0 e si può procedere con la richiesta
     //dei registri;
     if (sPeer.risposte_mancanti == 0)
@@ -954,7 +955,7 @@ void sPeer_gestioneRichiestaRegistri(int sd)
 // questi verranno a sostituire i precedenti, in quanto viene sempre inviata l'intera lista aggiornata
 void sPeer_gestisciNuoviVicini(int sd)
 {
-    int ret, num, len;
+    int ret, num, len, i = 0;
     uint16_t lmsg;
     const char delim[2] = ":";
     char* token;
@@ -987,7 +988,7 @@ void sPeer_gestisciNuoviVicini(int sd)
     // first token
     token = strtok(neighbors, delim);
     // walk through the other tokens
-    while (token != NULL) {
+    while (token != NULL && i < num) {
         if(atoi(token) != sPeer.port) { // un peer non deve avere se stesso come vicino
             DEBUG_PRINT(("I add (%d) because i'm (%d) and i'm different\n", atoi(token), sPeer.port));
             CVECTOR_ADD((sPeer.vicini), atoi(token));

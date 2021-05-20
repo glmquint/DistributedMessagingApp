@@ -18,7 +18,7 @@
 #define REQAG_LEN 50 
 #define MAX_PEER_DA_CONTATTARE 100 //FIXUP: shoudn't need this
 
-time_t rawtime; /*rawtime di uso globale*/
+time_t rawtime; /*rawtime di uso globale*/ 
 
 /*FileManager definitions*/
 struct FileManager
@@ -38,18 +38,18 @@ struct sPeer
     int port;
     int requester; // FIXUP: il nuovo proc può tenere traccia da sé di chi ha fatto la richiesta di flood,
                     // per di più non ha bisogno di chiuderne il socket, quindi forse è un'informazione ridondante
-    int sd_flood;
-    int richieste_inviate;
-    char richiesta_id[20];
+    int sd_flood; // FIXUP: check if to clean
+    int richieste_inviate; // FIXUP: check if to clean
+    char richiesta_id[20]; // FIXUP: check if to clean
     int richiesta_in_gestione; // FIXUP: shouldn't need this if we use another proc
                                 // also, seems we need to implement multi request handling
     vector flood_requests; // (str)id: initiator_peer.port (+) request_timestamp
     int risposte_mancanti; // il nuovo proc può tenere traccia da sé di quante risposte mancono alla
-                            // richiesta in gestione tramite una variabile globale
+                            // richiesta in gestione tramite una variabile locale
     
     cvector vicini;
-    int peer_da_contattare[MAX_PEER_DA_CONTATTARE];
-    int numero_peer_da_contattare;
+    int peer_da_contattare[MAX_PEER_DA_CONTATTARE]; // FIXUP: check if to clean
+    int numero_peer_da_contattare; // FIXUP: check if to clean
     int ds_port;
     char ds_ip[20];
 } sPeer;

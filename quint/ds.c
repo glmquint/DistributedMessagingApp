@@ -113,9 +113,9 @@ void Ds_showneighbor(int peer)
     for (int i = 0; i < VECTOR_TOTAL((peerRegister.peers)); i++) {
         struct PeerRecord* peer_r = VECTOR_GET((peerRegister.peers), struct PeerRecord*, i);
         if (peer < 0 || peer == peer_r->port) {
-            SCREEN_PRINT(("showing peer: %d\nHis neighbors are:\n", peer_r->port));
+            SCREEN_PRINT(("showing peer: %d\nHis neighbors are:", peer_r->port));
             for (int j = 0; j < CVECTOR_TOTAL((peer_r->neighbors)); j++) {
-                SCREEN_PRINT(("[%d] %d\n", j, CVECTOR_GET((peer_r->neighbors), int, j)));
+                SCREEN_PRINT(("[%d] %d", j, CVECTOR_GET((peer_r->neighbors), int, j)));
             }
         }
     }
