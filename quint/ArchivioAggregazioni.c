@@ -268,9 +268,11 @@ int ArchivioAggregazioni_verificaPresenzaDati(int flood)
         return 0;
 }
 
+//FIXUP: delete as this is useless
 //funzione che gestisce il calcolo dell'aggregazione nel caso in cui il peer non abbia trovato nel suo Archivio l'aggregazione richiesta
 void ArchivioAggregazioni_precalcoloAggregazione(char *aggr, char *type, char *period)
 {
+    /*
     if (ArchivioAggregazioni_verificaPresenzaDati(0))
     {
         SCREEN_PRINT(("Il peer HA tutte le date necessarie per calcolare l'aggregazione\n"));
@@ -290,6 +292,7 @@ void ArchivioAggregazioni_precalcoloAggregazione(char *aggr, char *type, char *p
             sPeer_sendFlood(); //setta la variabile sPeer.peer_da_contattare
         }
     }
+    */
 }
 
 //funzione che valuta in base alla stringa period ricevuta come parametro se il periodo inserito è valido.
@@ -480,7 +483,25 @@ void ArchivioAggregazioni_gestioneAggregazione(char *aggr, char *type, char *per
         }
         else
         {
-            ArchivioAggregazioni_precalcoloAggregazione(aggr, type, period);
+            if (ArchivioAggregazioni_verificaPresenzaDati(0))
+            {
+                SCREEN_PRINT(("Il peer HA tutte le date necessarie per calcolare l'aggregazione\n"));
+                ArchivioAggregazioni_calcoloAggregazione(aggr, type, period);
+                return;
+            }
+            else
+            {
+                SCREEN_PRINT(("Il peer NON HA tutte le date necessarie per calcolare l'aggregazione\n"));
+                SCREEN_PRINT(("Inoltro richiesta ai neighbor per l'aggregazione\n"));
+                if (!sPeer_richiestaAggregazioneNeighbor(aggr, type, period)) 
+                {
+                    SCREEN_PRINT(("Aggregazione non fornita dai neighbor\n"));
+                    strcpy(ArchivioAggregazioni.aggr, aggr);
+                    strcpy(ArchivioAggregazioni.type, type);
+                    strcpy(ArchivioAggregazioni.period, period);
+                    sPeer_sendFlood(); //setta la variabile sPeer.peer_da_contattare
+                }
+            }
         }
     }
     else

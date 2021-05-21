@@ -1009,6 +1009,184 @@ void sPeer_dsStop()
     exit(0);
 }
 
+int net_initTCP(int sv_port)
+{
+    struct sockaddr_in sv_addr;
+    int sd = socket(AF_INET, SOCK_STREAM, 0);
+
+    memset(&sv_addr, 0, sizeof(sv_addr));
+    sv_addr.sin_family = AF_INET;
+    sv_addr.sin_port = htons(sv_port);
+    inet_pton(AF_INET, "127.0.0.1", &sv_addr.sin_addr);
+
+    if (connect(sd, (struct sockaddr *)&sv_addr, sizeof(sv_addr)) < 0)
+    {
+        perror("Errore in fase di connessione: ");
+        exit(-1);
+    }
+    return sd;
+}
+
+void net_sendTCP(int sd, char protocol[6], char* buffer)
+{
+    int len = strlen(buffer);
+    uint16_t lmsg = htons(len);
+    if (send(sd, (void *)protocol, REQ_LEN, 0) < 0) {
+        perror("Errore in fase di invio protocollo: ");
+        exit(-1);
+    }
+    if (send(sd, (void *)&lmsg, sizeof(uint16_t), 0) < 0) {
+        perror("Errore in fase di invio lunghezza messaggio: ");
+        exit(-1);
+    }
+    if (len > 0) { // non eseguire la send se il messaggio è vuoto
+        if (send(sd, (char *)buffer, len, 0) < len) {
+            perror("Errore in fase di invio messaggio: ");
+            exit(-1);
+        }
+    }
+}
+
+// this allocates memory, so remember to free it after use!
+void net_receiveTCP(int sd, char* buffer)
+{
+    int len;
+    uint16_t lmsg;
+
+    if (recv(sd, (void *)&lmsg, sizeof(uint16_t), 0) < 0)
+    {
+        perror("Errore in fase di ricezione lunghezza messaggio: ");
+        exit(-1);
+    }
+
+    len = ntohs(lmsg);
+    if (len > 0) { // il messaggio è vuoto, inutile fare la recv
+        buffer = malloc(len);
+        memset(buffer, 0, len);
+        if (recv(sd, (void *)buffer, len, 0) < len)
+        {
+            perror("Errore in fase di ricezione messaggio: ");
+            exit(1);
+        }
+    } else {
+        buffer = NULL;
+    }
+
+}
+
+struct FloodRequest{
+    char* id;
+    int requester;
+    struct tm prima_data;
+    struct tm ultima_data;
+};
+
+struct FloodRequest* parseFloodRequest(char* buffer)
+{
+    struct FloodRequest* fr;
+    fr = malloc(sizeof(struct FloodRequest));
+    fr->id = "123";
+    fr->requester = 234;
+    return (fr);
+}
+
+char* encodeFloodRequest(struct FloodRequest fr, int new_requester)
+{
+    // text-encoding della struttura FloorRequest da poter essere inviata ad un altro peer
+    char* buffer = malloc(1024);
+    fr.requester = new_requester;
+    /*strcat( strcat( strcat( strcat( strcat( strcat( strcat( strcat( 
+    buffer, fr.id), 
+    fr.requester),
+    fr.prima_data.tm_mday),
+    fr.prima_data.tm_mon),
+    fr.prima_data.tm_year),
+    fr.ultima_data.tm_mday),
+    fr.ultima_data.tm_mon), 
+    fr.ultima_data.tm_year);*/
+    strcat(buffer, fr.id);
+    return buffer;
+}
+
+void sPeer_floodNeighbors(struct FloodRequest fr, char* answer)
+{
+    int fdmax = -1; 
+    int remaining_neighbors = CVECTOR_TOTAL(sPeer.vicini);
+    fd_set read_fds;
+    FD_ZERO(&read_fds);
+
+    for (int i = 0; i < remaining_neighbors; i++)
+    {
+        int sd = net_initTCP(CVECTOR_GET(sPeer.vicini, int, i));
+        FD_SET(sd, &read_fds);
+        if (sd > fdmax)
+            fdmax = sd;
+    }
+    while (remaining_neighbors > 0)
+    {
+        if (select(fdmax + 1, &read_fds, NULL, NULL, NULL) > 0) {
+            for (int i = 0; i < fdmax + 1; i++)
+            {
+                if (FD_ISSET(i, &read_fds)) {
+                    char* buffer;
+                    net_receiveTCP(i, buffer);
+                    strcat(answer, buffer);
+                    remaining_neighbors--;
+                    free(buffer);
+                }
+            }
+            
+        }
+    }
+}
+
+void sPeer_checkFloodRequest(struct FloodRequest fr, char* buffer)
+{
+    if (true) { // logic to determine if this peer has at least one interesting register
+        char peerport[6];
+        sprintf(peerport, ":%d", sPeer.port);
+        strcat(buffer, peerport);
+    }
+}
+
+void sPeer_handleFloodReq(int sd)
+{
+    bool trovato;
+    char* buffer;
+    net_receiveTCP(sd, buffer);
+    struct FloodRequest* fr = parseFloodRequest(buffer);
+
+    for (int i = 0; i < VECTOR_TOTAL(sPeer.flood_requests); i++) {
+        if (strcmp(VECTOR_GET(sPeer.flood_requests, char*, i), fr->id) == 0) {
+            trovato = true;
+            break;
+        }
+    }
+    if (trovato) {
+        // flood già vista, rispondere contenuto vuoto
+        net_sendTCP(sd, "FLORE", "");
+    } else {
+        // nuova flood da registrare
+        // un nuovo processo si occupa di ritrasmetterla
+        pid_t pid;
+        VECTOR_ADD(sPeer.flood_requests, fr->id);
+        pid = fork();
+        if (pid == 0) {
+            //figlio
+            iom.fdmax = -1; // questo dovrebbe disabilitare la select in IOMultiplex, disabilitando la ricezione di nuove richieste
+                            // Non dovrebbe esserci bisogno di questa pratica, ma per sicurezza meglio disabilitare i socket in ascolto
+            sPeer_floodNeighbors(*fr, buffer);
+            sPeer_checkFloodRequest(*fr, buffer);
+            net_sendTCP(sd, "FLORE", buffer); // risposta con 
+            close(sd);
+            exit(0);
+        }
+        //padre
+    }
+    close(sd);
+    free(buffer);
+}
+
 void sPeer_handleTCP(char* buffer, int sd)
 {
     if (strcmp(buffer, "REQAG") == 0) //messaggio di richiesta di aggregazione 
@@ -1016,9 +1194,10 @@ void sPeer_handleTCP(char* buffer, int sd)
     else if (strcmp(buffer, "REQRE") == 0) //messaggio di richiesta di uno o più registri
         sPeer_gestioneRichiestaRegistri(sd);
     else if (strcmp(buffer, "FLOOD") == 0) //messaggio di inoltro di una FLOOD_FOR_ENTRIES
-        sPeer_gestioneFlood(sd);
-    else if (strcmp(buffer, "FLORE") == 0) //messaggio di risposta ad un richiesta di FLOOD_FOR_ENTRIES
-        sPeer_ricezioneRispostaFlood(sd); // FIXUP: non ce ne dovrebbe essere bisogno se flooding è gestito da altro proc
+        // sPeer_gestioneFlood(sd);
+        sPeer_handleFloodReq(sd);
+    // else if (strcmp(buffer, "FLORE") == 0) //messaggio di risposta ad un richiesta di FLOOD_FOR_ENTRIES
+        // sPeer_ricezioneRispostaFlood(sd); // FIXUP: non ce ne dovrebbe essere bisogno se flooding è gestito da altro proc
     else if (strcmp(buffer, "REQST") == 0) //messaggio di stop da parte di un neighbor
         sPeer_gestisciStop(sd);
     else if (strcmp(buffer, "UPDVI") == 0) //messaggio di comunicazione di nuovi vicini da parte del DS
@@ -1026,7 +1205,7 @@ void sPeer_handleTCP(char* buffer, int sd)
     else if (strcmp(buffer, "DSTOP") == 0) //messaggio di stop da parte del DS
         sPeer_dsStop();
     else
-        SCREEN_PRINT(("Ricevuto messaggio non valido\n"));
+        DEBUG_PRINT(("Ricevuto messaggio non valido\n"));
 }
 
 /* FIXUP: clean

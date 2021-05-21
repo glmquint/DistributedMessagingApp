@@ -81,7 +81,7 @@ void IOMultiplex(int port,
         i = select(iom->fdmax + 1, &(iom->read_fds), NULL, NULL, NULL);
         if (i < 0)
         {
-            perror("select returned %d: ");
+            perror("select: ");
             exit(1);
         }
 

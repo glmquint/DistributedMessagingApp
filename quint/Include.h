@@ -132,7 +132,7 @@ void RegistroGenerale_ricevoDateNecessarie(int sd);
 struct ArchivioAggregazioni
 {
     struct Aggregazione *lista_aggregazioni;
-    char aggr[20], type[20], period[20];
+    char aggr[20], type[20], period[20]; // FIXUP: delete maybe we don't need this
 } ArchivioAggregazioni;
 
 struct Aggregazione
