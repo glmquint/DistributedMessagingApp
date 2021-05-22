@@ -100,6 +100,7 @@ void IOMultiplex(int port,
                 }
                 else if (i == STDIN)
                 {
+                    memset(buffer, 0, sizeof(buffer));
                     fgets(buffer, 100, stdin);
                     handleSTDIN(buffer);
                 }
@@ -109,6 +110,7 @@ void IOMultiplex(int port,
                 }
                 else
                 {
+                    memset(buffer, 0, sizeof(buffer));
                     ret = recv(i, (void *)buffer, REQ_LEN, 0);
                     if (ret < 0)
                     {
@@ -116,7 +118,7 @@ void IOMultiplex(int port,
                         exit(1);
                     }
 
-                handleTCP(buffer, i);
+                    handleTCP(buffer, i);
                 }
             }
         }

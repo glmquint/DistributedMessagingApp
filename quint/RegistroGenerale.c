@@ -265,6 +265,7 @@ void RegistroGenerale_registroCorrente()
 }
 
 //funzione che aggiunge una entry nel RegistroGiornaliero puntato dalla variabile RegistroGenerale.ultimo_registro
+// FIXUP: useful
 void RegistroGiornaliero_aggiungiEntry(char *type, int quantity)
 {
     //aggiungo una entry al registro giornaliero

@@ -48,43 +48,6 @@ void Ds_initialize(char* port)
     vector_init(&(peerRegister.peers));
 }
 
-// FIXUP: DELETE. shouldn't need that
-//funzione che imposta la stringa RegistroPeer.boot_vicini con i vicini del peer passato come parametro
-//l'implementazione della funzione stabilisce la topologie della rete
-void Ds_restituisciVicini(int porta)
-{
-    /*
-    struct Peer *pp, *prevp;
-    int porta1, porta2;
-
-    SCREEN_PRINT(("Stabilisco i vicini del peer %d\n", porta));
-    prevp = 0;
-    pp = RegistroPeer.lista_peer;
-    while (pp != 0)
-    {
-        if (pp->porta == porta) //trovo il peer cercato
-            break;
-        prevp = pp;
-        pp = pp->next_peer;
-        if(prevp->porta >= pp->porta){
-            SCREEN_PRINT(("Peer non registrato\n"));
-            return;
-        }
-    }
-
-    porta1 = pp->prev_peer->porta;
-    if(porta1 == pp->porta) porta1 = 0;
-
-    porta2 = pp->next_peer->porta;
-    if(porta2 == pp->porta) porta2 = 0;
-
-    if(porta1 == porta2) porta2 = 0;
-    
-    //una volta trovate le 2 porte più vicine le restituisco come stringa
-    SCREEN_PRINT(("Vicini impostati: %d %d\n\n", porta1, porta2));
-    sprintf(RegistroPeer.boot_vicini, "%d %d", porta1, porta2);
-    */
-}
 
 //funzione che stampa nel dettaglio le operazioni del Ds
 void Ds_help()
@@ -191,105 +154,8 @@ void Ds_menu(char* buffer)
     }
 }
 
-//FIXUP: delete this as we shouldn't need it. It's all handled by void Ds_peerRegistration(int sd)
-//funzione che aggiunge un peer alla lista circolare dei peer ordinata per numero di porta
-/*void Ds_aggiungiPeer(int porta)
-{
-    struct Peer *new_peer = malloc(sizeof(struct Peer));
-    new_peer->porta = porta;
 
-    struct Peer *pp, *prevp;
-    pp = RegistroPeer.lista_peer;
-    prevp = 0;
-
-    while (pp != 0 && (pp->porta < new_peer->porta))
-    {
-        prevp = pp;
-        pp = pp->next_peer;
-        if (prevp->porta >= pp->porta)
-            break;
-    }
-
-    if (prevp)
-    {
-        if (prevp->porta == porta)
-        {
-            SCREEN_PRINT(("Peer %d non aggiunto alla lista perchè già presente\n", porta));
-        }
-        prevp->next_peer = new_peer;
-        new_peer->prev_peer = prevp;
-    }
-    else
-        RegistroPeer.lista_peer = new_peer;
-
-    new_peer->next_peer = pp;
-    if(pp)
-        pp->prev_peer = new_peer;
-
-    if (new_peer->next_peer == 0)
-        new_peer->next_peer = RegistroPeer.lista_peer;
-
-    prevp = 0;
-    pp = RegistroPeer.lista_peer;
-    while(pp){
-        prevp = pp;
-        pp = pp->next_peer;
-        if (prevp->porta >= pp->porta)
-            break;
-    }
-    RegistroPeer.lista_peer->prev_peer = prevp;
-    prevp->next_peer = RegistroPeer.lista_peer;
-    RegistroPeer.numero_peer++;
-    SCREEN_PRINT(("Peer %d aggiunto correttamente alla lista dei peer connessi\n", porta));
-    
-}*/
-
-//FIXUP: delete this as we shouldn't need it. It's all handled by void Ds_peerRegistration(int sd)
-//funzione che rimuove un peer dalla lista dei peer
-/*
-void Ds_rimuoviPeer(int porta)
-{
-    
-    struct Peer *pp, *prevp;
-
-    SCREEN_PRINT(("Rimuovo il peer %d dalla lista dei peer\n", porta));
-    prevp = 0;
-    pp = RegistroPeer.lista_peer;
-
-    while (pp != 0)
-    {
-        if (pp->porta == porta)
-            break;
-        prevp = pp;
-        pp = pp->next_peer;
-    }
-
-    if (prevp == 0)
-    {
-        if(pp->porta == pp->next_peer->porta) RegistroPeer.lista_peer = 0;
-        else RegistroPeer.lista_peer = pp->next_peer;
-    }     
-    else
-    {
-        prevp->next_peer = pp->next_peer;
-        pp->next_peer->prev_peer = prevp;
-    }
-    prevp = 0;
-    pp = RegistroPeer.lista_peer;
-    while(pp){
-        prevp = pp;
-        pp = pp->next_peer;
-        if (prevp->porta >= pp->porta)
-            break;
-    }
-    if(RegistroPeer.lista_peer) RegistroPeer.lista_peer->prev_peer = prevp;
-    if(prevp) prevp->next_peer = RegistroPeer.lista_peer;
-
-    RegistroPeer.numero_peer--;
- 
-}   */
-
-void sendNeighborsUpdate(int peer, cvector new_neighbors)
+void Ds_sendNeighborsUpdate(int peer, cvector new_neighbors)
 {
     int ret, sd, len;
     uint16_t lmsg;
@@ -357,23 +223,12 @@ void sendNeighborsUpdate(int peer, cvector new_neighbors)
 
     close(sd);
 
-/*
-    strcpy(buffer, RegistroPeer.boot_vicini);
-
-    SCREEN_PRINT(("Comunico al peer %d i suoi nuovi vicini\n\n", peer));
-    ret = send(sd, (void *)buffer, BOOT_RESP, 0);
-    if (ret < 0)
-    {
-        perror("Errore in fase di invio: ");
-        exit(1);
-    }
-    */
 }
 
 
 
 //funzione che gestisce il boot di un peer
-void Ds_peerRegistration(int sd)
+void Ds_handlePeerRegistration(int sd)
 {
     int ret, new_peer_port, peers_num, len;
     uint16_t lmsg;
@@ -402,29 +257,29 @@ void Ds_peerRegistration(int sd)
     newPeer = (struct PeerRecord*) malloc(sizeof(struct PeerRecord));
     newPeer->port = new_peer_port;
     cvector_init(&(newPeer->neighbors));
-    if (peers_num == 0) {
-        strcpy(answer, "0 :)"); // the string part is useless
+    if (peers_num == 0) { // il primo peer a connettersi alla rete
+        strcpy(answer, "0 :)"); // la stringa dopo lo spazio non verrà considerata
         DEBUG_PRINT(("no peers yet, you are the first! sending: %s\n", answer));
     } else {
         // zukunfty algoritm
         int new_connections = 0;
         int i = 1;
-        while (peers_num % i == 0) {
+        while (peers_num % i == 0) { // sono vicini i peer che hanno come distanza di indici nel vettore una potenza di 2 rispetto al peer entrante in coda
             char* nei_port = malloc(5);
             struct PeerRecord* neighbor =  VECTOR_GET((peerRegister.peers), struct PeerRecord*, peers_num - i);
             DEBUG_PRINT(("new neighbor to add: %d\n", neighbor->port));
             CVECTOR_ADD((newPeer->neighbors), neighbor->port); //trovato un nuovo vicino per il peer entrante
 
             sprintf(nei_port, ":%d", neighbor->port);
-            strcat(neighbors_list, nei_port);
+            strcat(neighbors_list, nei_port); // la lista dei vicini da aggiungere avrà la forma :123:234:345...
             free(nei_port);
             DEBUG_PRINT(("now neighbors_list is: %s\n", neighbors_list));
 
             // e vice versa
-            // il peer entrante viene aggiunto alla lista dei vicini del vicino
+            // il peer entrante viene aggiunto alla lista dei vicini del vicino appena trovato
             DEBUG_PRINT(("and %d should update to include: %d\n", neighbor->port, new_peer_port));
             CVECTOR_ADD((neighbor->neighbors), new_peer_port);
-            sendNeighborsUpdate(neighbor->port, neighbor->neighbors);
+            Ds_sendNeighborsUpdate(neighbor->port, neighbor->neighbors);
 
             new_connections++;
             i *= 2; //raddoppiare l'indice di scorrimento del vettore permette una ricerca logaritmica dei vicini da aggiungere
@@ -433,7 +288,7 @@ void Ds_peerRegistration(int sd)
     }
     VECTOR_ADD((peerRegister.peers), newPeer);
     len = strlen(answer);
-    DEBUG_PRINT(("done with new neighbors. I'm gonna answer: %s\t of len: %d\n\n", answer, len)); //FIXUP: better log (probably on sPeer_serverBoot)
+    DEBUG_PRINT(("done with new neighbors. I'm gonna answer: %s\t of len: %d\n\n", answer, len)); //FIXUP: better log
 
     lmsg = htons(len);
     ret = sendto(sd, (void*) &lmsg, sizeof(uint16_t), 0, (struct sockaddr *)&connecting_addr, sizeof(connecting_addr));
@@ -449,7 +304,7 @@ void Ds_peerRegistration(int sd)
         perror("Errore nell'invio del messaggio: ");
         exit(1);
     }
-    DEBUG_PRINT(("done with new neighbors. I answered: %s\t of len: %d\n\n", answer, len)); //FIXUP: better log (probably on sPeer_serverBoot)
+    DEBUG_PRINT(("done with new neighbors. I answered: %s\t of len: %d\n\n", answer, len)); //FIXUP: better log
 }
 
 // funzione che gestisce la disconnessione da parte di un peer
@@ -503,7 +358,7 @@ void Ds_handleDisconnectReq(int sd)
             }
         }
         if(neighbor_port != disconnecting_peer_port) // non ha senso contattare il peer che si è appena disconnesso
-            sendNeighborsUpdate(neighbor->port, neighbor->neighbors); //ogni vicino riceve la notifica di "disconnessione" del peer in fondo alla lista
+            Ds_sendNeighborsUpdate(neighbor->port, neighbor->neighbors); //ogni vicino riceve la notifica di "disconnessione" del peer in fondo alla lista
     }
     // se il peer che ha richiesto la disconnessione è proprio il peer in fondo al vettore, possiamo anche fermarci quì, 
     // altrimenti è necessario far andare il peer in fondo al vettore al posto del peer che ha richiesto di disconnettersi
@@ -538,11 +393,11 @@ void Ds_handleDisconnectReq(int sd)
             if (!trovato)
                 CVECTOR_ADD((neighbor->neighbors), last_peer->port);
             if(neighbor_port != disconnecting_peer_port) // non ha senso contattare il peer che si è appena disconnesso
-                sendNeighborsUpdate(neighbor->port, neighbor->neighbors); //ogni vicino riceve la notifica di disconnessione del peer che ne aveva fatto richiesta
+                Ds_sendNeighborsUpdate(neighbor->port, neighbor->neighbors); //ogni vicino riceve la notifica di disconnessione del peer che ne aveva fatto richiesta
                 
         }
         disconnecting_peer->port = last_peer->port;
-        sendNeighborsUpdate(disconnecting_peer->port, disconnecting_peer->neighbors);// adesso è il peer che era in fondo e che ha preso il posto del peer disconnesso
+        Ds_sendNeighborsUpdate(disconnecting_peer->port, disconnecting_peer->neighbors);// adesso è il peer che era in fondo e che ha preso il posto del peer disconnesso
     }
     VECTOR_DELETE((peerRegister.peers), -1);
     ret = send(sd, "ACK", 4, 0);
@@ -551,8 +406,6 @@ void Ds_handleDisconnectReq(int sd)
         perror("Errore in fase di invio: ");
         exit(-1);
     }
-    close(sd);
-    FD_CLR(sd, &iom.master);
 }
 
 void DS_handleTCP(char* buffer, int sd)
@@ -560,9 +413,12 @@ void DS_handleTCP(char* buffer, int sd)
     if (strcmp(buffer, "RSTOP") == 0) //messaggio di disconnessione da parte di un peer
         Ds_handleDisconnectReq(sd);
     else {
-        SCREEN_PRINT(("Ricevuto messaggio non valido\n"));
+    SCREEN_PRINT(("Ricevuto messaggio non valido\n"));
        DEBUG_PRINT(("ricevuto: %s", buffer));
     }
+    close(sd);
+    FD_CLR(sd, &iom.master);
+
 }
 
 
@@ -571,6 +427,6 @@ int main(int argc, char *argv[])
 {
     Ds_initialize(argv[1]);
     Ds_help();
-    IOMultiplex(DiscoveryServer.port, &iom, true, Ds_menu, Ds_peerRegistration, DS_handleTCP);
+    IOMultiplex(DiscoveryServer.port, &iom, true, Ds_menu, Ds_handlePeerRegistration, DS_handleTCP);
     return (0);
 }

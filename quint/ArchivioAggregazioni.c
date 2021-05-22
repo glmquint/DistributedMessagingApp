@@ -469,9 +469,10 @@ int ArchivioAggregazioni_periodoValido(char *period)
 }
 
 //funzione che gestisce la richiesta di aggregazione da input
+// FIXUP: useful
 void ArchivioAggregazioni_gestioneAggregazione(char *aggr, char *type, char *period)
 {
-    DEBUG_PRINT(("richiesta aggregazione: %s, tipo: %s, periodo: %s", aggr, type, period));
+    DEBUG_PRINT(("richiesta aggregazione: %s, tipo: %s, periodo: %s\n", aggr, type, period));
     struct Aggregazione *pp;
     if (ArchivioAggregazioni_periodoValido(period)) //la periodoValido modifica la stringa period nel modo giusto
     {
