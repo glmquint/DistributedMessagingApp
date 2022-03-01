@@ -1,0 +1,76 @@
+all: client server
+
+# make rule per il client
+client: client.o
+	gcc –Wall client.o –o client
+
+client.o: client.c
+	gcc -c client.c
+
+# make rule per il server
+server: server.o
+	gcc –Wall server.o –o server
+
+server.o: server.c
+	gcc -c server.c
+
+# pulizia dei file della compilazione 
+clean: 
+	rm *.o client server
+
+# sezione dedicata al testing del codice in fase di sviluppo
+
+Here=$(PWD)
+
+# cartella contenente i file di test
+Testdir=$(Here)/tests
+
+# cartella temporanea per contenere i risultati effettivi .got
+Tmp=$(Testdir)/tmp
+
+ready:  $(Testdir) $(Tmp)
+
+Tests:=$(shell cd $(Testdir); ls  | egrep '^[0-9]+$$' | sort -n  )
+
+# esecuzione di uno specifico tesst (esempio: make X=001 run)
+run : ready $(Testdir)/$(X)
+	@echo $X 2>&1
+	@cat $(Testdir)/$(X) | $(Run)
+
+# salvataggio nel file cache .want del risultato effettivo del test (esempio: make X=001 cache)
+cache : ready
+	@$(MAKE) -s run | tee $(Testdir)/$X.want
+	@echo new test result cached to $(Testdir)/$X.want
+
+# confronto del risultato del test salvato nel file .got 
+# con il risultato atteso contenuto in nel file .want (esempio: make X=001 test)
+test : ready $(Testdir)/$(X).want
+	@$(MAKE) -s run > $(Tmp)/$X.got
+	@if diff -s $(Tmp)/$X.got $(Testdir)/$X.want > /dev/null;  \
+		then echo PASSED $X ; \
+		else echo FAILED $X,  got $(Tmp)/$X.got; \
+            diff $(Testdir)/$X.want $(Tmp)/$X.got; \
+		fi
+
+# effettua tutti i test contenuti nella cartella $(Testdir) (esempio: make test-all)
+test-all:  
+	@echo $(Tests)
+	@$(foreach x, $(Tests), $(MAKE) -s X=$x test;)
+
+# salvataggio in cache dei risultati attesi per tutti i test contenuti in $(Testdir)
+# da usare con cautela, in quanto verranno sovrascritti tutti i risultati attesi salvati in cache
+cache-all :
+	@echo Affected files: $(Tests)
+	@echo If you are absolutely sure, use make cache-all-I-know-what-Im-doing
+
+# implementazione effettiva dell'istruzione cache-all
+cache-all-I-know-what-Im-doing :
+	@$(foreach x, $(Tests), $(MAKE) -s X=$x cache;)
+
+# conteggio dei test superati e falliti
+score :
+	@$(MAKE) -s test-all | cut -d\  -f 1 | egrep '(PASSED|FAILED)' | sort | uniq -c
+
+# comando per mettere effettivamente in esecuzione il test passato come paramentro
+# varia in base al linguaggio (in questo caso, gli script bash vengono semplicemente lanciati)
+Run= ./$(1)
