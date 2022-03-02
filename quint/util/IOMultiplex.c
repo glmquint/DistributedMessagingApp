@@ -1,6 +1,7 @@
 #include <arpa/inet.h>
 #include <sys/types.h>
 #include <sys/socket.h>
+#include <sys/select.h>
 #include <netinet/in.h>
 #include <string.h>
 #include <stdio.h>
@@ -8,7 +9,9 @@
 #include <unistd.h>
 #include <time.h>
 #include <stdbool.h>
-#include "IOMultiplex.h"
+
+#define STDIN 0
+#define REQ_LEN 6
 
 #define DEBUG_OFF
 
@@ -19,6 +22,14 @@
 #endif
 
 #define SCREEN_PRINT(x) printf("\r"); printf x; printf("\n>> ");
+
+struct sIOMultiplexer
+{
+    fd_set master;
+    fd_set read_fds;
+    fd_set write_fds;
+    int fdmax;
+} iom;
 
 //funzione che gestice l'IO del Ds ovvero si occupa di gestire le varie comunicazioni tra i suoi peer e l'input per mezzo della funzione select
 void IOMultiplex(int port, 

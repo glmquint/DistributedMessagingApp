@@ -1,22 +1,22 @@
-all: client server
+all: dev serv
 
 # make rule per il client
-client: client.o
-	gcc –Wall client.o –o client
+dev: device.o
+	gcc -Wall device.o -o dev
 
-client.o: client.c
-	gcc -c client.c
+device.o: device.c
+	gcc -c device.c
 
 # make rule per il server
-server: server.o
-	gcc –Wall server.o –o server
+serv: server.o
+	gcc -Wall server.o -o serv
 
 server.o: server.c
 	gcc -c server.c
 
 # pulizia dei file della compilazione 
 clean: 
-	rm *.o client server
+	rm *.exe *.o dev serv
 
 # sezione dedicata al testing del codice in fase di sviluppo
 
@@ -73,4 +73,5 @@ score :
 
 # comando per mettere effettivamente in esecuzione il test passato come paramentro
 # varia in base al linguaggio (in questo caso, gli script bash vengono semplicemente lanciati)
-Run= ./$(1)
+#Run=echo got $(1); bash -c "${1}" #; ./$(2)
+Run = sh
