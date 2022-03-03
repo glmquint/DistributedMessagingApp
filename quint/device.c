@@ -4,6 +4,7 @@
 #include <unistd.h>
 #include <stdbool.h>
 #include "util/IOMultiplex.h"
+#include "util/cmd.h"
 
 #define STDIN_BUF_LEN 128
 #define CMDLIST_LEN 8
@@ -19,18 +20,7 @@
 
 #define SCREEN_PRINT(x) printf("\r"); printf x; printf("\n>> "); fflush(stdout);
 
-struct Cmd_s {
-    char* name;
-    char* arguments[20];
-    int arg_num;
-    char* help;
-    bool requires_login;
-    bool always_print;
-};
-
-typedef struct Cmd_s Cmd;
-
-struct Device {
+struct Device_s {
     bool is_logged_in;
     int port;
     Cmd available_cmds[CMDLIST_LEN];
@@ -55,19 +45,6 @@ void Device_Init(int argv, char *argc[])
     Device.is_logged_in = false;
 }
 
-void Device_showMenu()
-{
-    SCREEN_PRINT(("        \nDigita un comando:\n"));
-    for (int i = 0; i < CMDLIST_LEN; i++) {
-        if (Device.available_cmds[i].always_print || Device.available_cmds[i].requires_login == Device.is_logged_in) {
-            char current_args[50] = "";
-            for (int j = 0; j < Device.available_cmds[i].arg_num; j++)
-                sprintf(current_args, "%s <%s>", current_args, Device.available_cmds[i].arguments[j]);
-            SCREEN_PRINT(("    %s%s --> %s", Device.available_cmds[i].name, current_args, Device.available_cmds[i].help));
-        }
-    }
-}
-
 void Device_esc()
 {
     printf("Arrivederci");
@@ -82,7 +59,7 @@ void Device_handleSTDIN(char* buffer)
         Device_esc();
     else
         SCREEN_PRINT(("comando non valido: %s", tmp));
-    Device_showMenu();
+    Cmd_showMenu(Device.available_cmds, CMDLIST_LEN, Device.is_logged_in);
 }
 
 void Device_handleUDP(int sd)
@@ -99,7 +76,7 @@ int main(int argv, char *argc[])
 {
     
     Device_Init(argv, argc);
-    Device_showMenu();
+    Cmd_showMenu(Device.available_cmds, CMDLIST_LEN, false);
     IOMultiplex(Device.port, false, Device_handleSTDIN, Device_handleUDP, Device_handleTCP);
 
     return 0;

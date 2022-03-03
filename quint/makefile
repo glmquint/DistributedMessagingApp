@@ -1,25 +1,28 @@
 all: dev serv
 
 # make rule per il client
-dev: device.o IOMultiplex.o
-	gcc -Wall device.o IOMultiplex.o -o dev
+dev: device.o IOMultiplex.o cmd.o
+	gcc -Wall device.o IOMultiplex.o cmd.o -o dev
 
 device.o: device.c
 	gcc -c -g device.c
 
-IOMultiplex.o: util/IOMultiplex.c
-	gcc -c -g util/IOMultiplex.c
-
 # make rule per il server
-serv: server.o
-	gcc -Wall server.o -o serv
+serv: server.o IOMultiplex.o cmd.o
+	gcc -Wall server.o IOMultiplex.o cmd.o -o serv
 
 server.o: server.c
 	gcc -c -g server.c
 
+IOMultiplex.o: util/IOMultiplex.c
+	gcc -c -g util/IOMultiplex.c
+
+cmd.o: util/cmd.c
+	gcc -c -g util/cmd.c
+
 # pulizia dei file della compilazione 
 clean: 
-	rm *.exe *.o dev serv device server
+	rm *.exe *.o dev serv
 
 # sezione dedicata al testing del codice in fase di sviluppo
 
