@@ -1,1 +1,3 @@
-./dev 4242
+./dev 4242 << EOF
+esc
+EOF
