@@ -9,10 +9,10 @@
 #define STDIN_BUF_LEN 128
 #define CMDLIST_LEN 8
 
-#define DEBUG_OFF
+#define DEBUG_ON
 
 #ifdef DEBUG_ON
-# define DEBUG_PRINT(x) printf x; printf("\n"); fflush(stdout)
+# define DEBUG_PRINT(x) printf("[DEBUG]: "); printf x; printf("\n"); fflush(stdout)
 #else
 # define DEBUG_PRINT(x) do {} while (0)
 #endif
@@ -50,14 +50,28 @@ void Device_esc()
     exit(0);
 }
 
+void Device_in(int srv_port, char* username, char* password)
+{
+    DEBUG_PRINT(("richiesta di login sul server localhost:%d con credenziali ( %s : %s )", srv_port, username, password));
+}
+
 void Device_handleSTDIN(char* buffer)
 {
-    char tmp[20];
+    char tmp[20], username[32], password[32];
+    int srv_port;
+
     sscanf(buffer, "%s", tmp);
     if(!strcmp("esc", tmp))
         Device_esc();
-    else
+    else if (!strcmp("in", tmp)) {
+        if (sscanf(buffer, "%s %d %s %s", tmp, &srv_port, username, password) == 4) {
+            Device_in(srv_port, username, password);
+        } else {
+            SCREEN_PRINT(("formato non valido per il comando %s %d %s %s", tmp, srv_port, username, password));
+        }
+    } else {
         SCREEN_PRINT(("comando non valido: %s", tmp));
+    }
     Cmd_showMenu(Device.available_cmds, CMDLIST_LEN, Device.is_logged_in);
 }
 

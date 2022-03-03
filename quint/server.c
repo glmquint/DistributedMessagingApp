@@ -13,7 +13,7 @@
 #define DEBUG_OFF
 
 #ifdef DEBUG_ON
-# define DEBUG_PRINT(x) printf x; printf("\n"); fflush(stdout)
+# define DEBUG_PRINT(x) printf("[DEBUG]: "); printf x; printf("\n"); fflush(stdout)
 #else
 # define DEBUG_PRINT(x) do {} while (0)
 #endif
@@ -61,6 +61,7 @@ void Server_handleUDP(int sd)
 
 void Server_handleTCP(char* cmd, int sd)
 {
+    DEBUG_PRINT(("recieved on sd(%d): %s", sd, cmd));
 }
 
 int main(int argv, char *argc[]){
