@@ -5,14 +5,17 @@
 #include <stdbool.h>
 #include "util/IOMultiplex.h"
 
-#define SIGNUP  0
-#define IN      1
-#define HANGING 2
-#define SHOW    3
-#define CHAT    4
-#define OUT     5
-
 #define STDIN_BUF_LEN 128
+#define CMDLIST_LEN 8
+
+#define DEBUG_OFF
+
+#ifdef DEBUG_ON
+# define DEBUG_PRINT(x) printf x; printf("\n"); fflush(stdout)
+#else
+# define DEBUG_PRINT(x) do {} while (0)
+#endif
+
 
 #define SCREEN_PRINT(x) printf("\r"); printf x; printf("\n>> "); fflush(stdout);
 
@@ -43,11 +46,12 @@ void Device_showMenu()
     SCREEN_PRINT(("    share <file_name> --> invia il file <file_name> (nella current directory) al device su cui è connesso l'utente o gli utenti con cui si sta chattando"));
     SCREEN_PRINT(("    out --> richiede una disconnessione dal network"));
     SCREEN_PRINT(("    esc --> chiude l'applicazione\n"));
+    */
 }
 
 void Device_esc()
 {
-    SCREEN_PRINT(("Arrivederci!"));
+    printf("Arrivederci");
     exit(0);
 }
 
