@@ -47,7 +47,7 @@ void Device_Init(int argv, char *argc[])
 
 void Device_esc()
 {
-    printf("Arrivederci");
+    printf("Arrivederci\n");
     exit(0);
 }
 
