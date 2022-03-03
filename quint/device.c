@@ -71,7 +71,6 @@ void Device_showMenu()
 void Device_esc()
 {
     printf("Arrivederci");
-    // SCREEN_PRINT(("Arrivederci!"));
     exit(0);
 }
 
@@ -98,21 +97,9 @@ void Device_handleTCP(char* cmd, int sd)
 
 int main(int argv, char *argc[]) 
 {
-    /*
-    sscanf(argc[1], "%d", &Client.port);
-    printf("Inserire username e password: \n");
-    memset(buffer, 0, 128);
-    read(STDIN_FILENO, buffer, 128);
-    buffer[127] = 0x0;
-    printf("now buffer is %s", buffer);
-    show_menu();
-    */
+    
     Device_Init(argv, argc);
     Device_showMenu();
-    // memset(Device.stdin_buffer, 0, STDIN_BUF_LEN);
-    // read(STDIN_FILENO, Device.stdin_buffer, STDIN_BUF_LEN);
-    // //Device.stdin_buffer[127] = 0x0;
-    // printf("now buffer is %s", Device.stdin_buffer);
     IOMultiplex(Device.port, false, Device_handleSTDIN, Device_handleUDP, Device_handleTCP);
 
     return 0;
