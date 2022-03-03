@@ -19,10 +19,10 @@
 struct Device {
     bool is_logged_in;
     int port;
-    char stdin_buffer[STDIN_BUF_LEN];
+    //char stdin_buffer[STDIN_BUF_LEN];
 } Device;
 
-void DeviceInit(int argv, char *argc[])
+void Device_Init(int argv, char *argc[])
 {
     if (argv < 2) {
         printf("Utilizzo: %s <porta>", argc[0]);
@@ -62,13 +62,14 @@ void Device_handleSTDIN(char* buffer)
     Device_showMenu();
 }
 
-void showAccessPortal()
+void Device_handleUDP(int sd)
 {
+    printf("Device_handleUDP(%d)", sd);
 }
 
-void handleInput()
+void Device_handleTCP(char* cmd, int sd)
 {
-    Device.is_logged_in = true;
+    printf("Device_handleTCP(%s, %d)", cmd, sd);
 }
 
 int main(int argv, char *argc[]) 
@@ -82,11 +83,13 @@ int main(int argv, char *argc[])
     printf("now buffer is %s", buffer);
     show_menu();
     */
-    DeviceInit(argv, argc);
-    while(! Device.is_logged_in) {
-        showAccessPortal();
-        handleInput();
-    }
+    Device_Init(argv, argc);
+    Device_showMenu();
+    // memset(Device.stdin_buffer, 0, STDIN_BUF_LEN);
+    // read(STDIN_FILENO, Device.stdin_buffer, STDIN_BUF_LEN);
+    // //Device.stdin_buffer[127] = 0x0;
+    // printf("now buffer is %s", Device.stdin_buffer);
+    IOMultiplex(Device.port, false, Device_handleSTDIN, Device_handleUDP, Device_handleTCP);
 
     return 0;
 }
