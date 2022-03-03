@@ -19,7 +19,7 @@ server.o: server.c
 
 # pulizia dei file della compilazione 
 clean: 
-	rm *.exe *.o dev serv
+	rm *.exe *.o dev serv device server
 
 # sezione dedicata al testing del codice in fase di sviluppo
 
