@@ -3,7 +3,7 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include <stdbool.h>
-#include "util/IOMultiplex.c"
+#include "util/IOMultiplex.h"
 
 #define SIGNUP  0
 #define IN      1

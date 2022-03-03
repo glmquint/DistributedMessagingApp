@@ -33,7 +33,7 @@ struct sIOMultiplexer
 
 //funzione che gestice l'IO del Ds ovvero si occupa di gestire le varie comunicazioni tra i suoi peer e l'input per mezzo della funzione select
 void IOMultiplex(int port, 
-                struct sIOMultiplexer* iom, 
+                // struct sIOMultiplexer* iom, 
                 bool use_udp, 
                 void (*handleSTDIN)(char* buffer),
                 void (*handleUDP)(int sd),
@@ -41,7 +41,6 @@ void IOMultiplex(int port,
 {
     int ret, newfd, listener, i, boot;
     socklen_t addrlen;
-
     struct sockaddr_in my_addr, cl_addr;
     char buffer[1024];
 
@@ -61,59 +60,54 @@ void IOMultiplex(int port,
 
     listen(listener, 10);
 
-    FD_ZERO(&(iom->master));
-    FD_ZERO(&(iom->read_fds));
-    FD_ZERO(&(iom->write_fds));
+    FD_ZERO(&(iom.master));
+    FD_ZERO(&(iom.read_fds));
+    FD_ZERO(&(iom.write_fds));
 
-    FD_SET(STDIN, &(iom->master));
-
-    FD_SET(listener, &(iom->master));
+    FD_SET(STDIN, &(iom.master));
+    FD_SET(listener, &(iom.master));
 
     if (use_udp) {
         boot = socket(AF_INET, SOCK_DGRAM, 0);
         ret = bind(boot, (struct sockaddr *)&my_addr, sizeof(my_addr));
         if (ret < 0)
         {
-            perror("Bind non riuscita2\n");
+            perror("Bind UDP non riuscita\n");
             exit(0);
         }
-        FD_SET(boot, &(iom->master));
+        FD_SET(boot, &(iom.master));
     } else
         boot = -1;
 
-    if (listener > boot)
-        iom->fdmax = listener;
-    else
-        iom->fdmax = boot;
+    iom.fdmax = (listener > boot) ? listener : boot;
 
     while (1)
     {
-        iom->read_fds = iom->master;
-        i = select(iom->fdmax + 1, &(iom->read_fds), NULL, NULL, NULL);
+        iom.read_fds = iom.master;
+        i = select(iom.fdmax + 1, &(iom.read_fds), NULL, NULL, NULL);
         if (i < 0)
         {
             perror("select: ");
             exit(1);
         }
 
-        for (i = 0; i <= iom->fdmax; i++)
+        for (i = 0; i <= iom.fdmax; i++)
         {
-            if (FD_ISSET(i, &(iom->read_fds)))
+            if (FD_ISSET(i, &(iom.read_fds)))
             {
-                DEBUG_PRINT(("%d is set!!!!!!!\n", i));
+                DEBUG_PRINT(("%d is set\n", i));
                 if (i == listener)
                 {
                     addrlen = sizeof(cl_addr);
                     newfd = accept(listener, (struct sockaddr *)&cl_addr, &addrlen);
-                    FD_SET(newfd, & iom->master);
-                    if (newfd > iom->fdmax)
-                        iom->fdmax = newfd;
+                    FD_SET(newfd, & iom.master);
+                    if (newfd > iom.fdmax)
+                        iom.fdmax = newfd;
                 }
                 else if (i == STDIN)
                 {
-                    memset(buffer, 0, sizeof(buffer));
-                    fgets(buffer, 100, stdin);
-                    handleSTDIN(buffer);
+                    if (fgets(buffer, sizeof buffer, stdin))
+                        handleSTDIN(buffer);
                 }
                 else if (i == boot)
                 {

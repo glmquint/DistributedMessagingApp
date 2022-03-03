@@ -1,18 +1,21 @@
 all: dev serv
 
 # make rule per il client
-dev: device.o
-	gcc -Wall device.o -o dev
+dev: device.o IOMultiplex.o
+	gcc -Wall device.o IOMultiplex.o -o dev
 
 device.o: device.c
-	gcc -c device.c
+	gcc -c -g device.c
+
+IOMultiplex.o: util/IOMultiplex.c
+	gcc -c -g util/IOMultiplex.c
 
 # make rule per il server
 serv: server.o
 	gcc -Wall server.o -o serv
 
 server.o: server.c
-	gcc -c server.c
+	gcc -c -g server.c
 
 # pulizia dei file della compilazione 
 clean: 
