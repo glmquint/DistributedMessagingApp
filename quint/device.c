@@ -58,7 +58,6 @@ void Device_Init(int argv, char *argc[])
 void Device_showMenu()
 {
     SCREEN_PRINT(("        \nDigita un comando:\n"));
-
     for (int i = 0; i < CMDLIST_LEN; i++) {
         if (Device.available_cmds[i].always_print || Device.available_cmds[i].requires_login == Device.is_logged_in) {
             char current_args[50] = "";
@@ -67,17 +66,6 @@ void Device_showMenu()
             SCREEN_PRINT(("    %s%s --> %s", Device.available_cmds[i].name, current_args, Device.available_cmds[i].help));
         }
     }
-
-/*
-    SCREEN_PRINT(("    signup <username> <password> --> crea un account sul server"));
-    SCREEN_PRINT(("    in <srv_port> <username> <password> --> richiede al server la conneione al servizio"));
-    SCREEN_PRINT(("    hanging --> riceve la lista degli utenti che hanno inviaato messaggi mentre si era offline"));
-    SCREEN_PRINT(("    show <username> --> riceve dal server i messaggi pendenti inviati da <username> mentre si era offline"));
-    SCREEN_PRINT(("    chat <username> --> avvia una chat con l'utente <username>"));
-    SCREEN_PRINT(("    share <file_name> --> invia il file <file_name> (nella current directory) al device su cui è connesso l'utente o gli utenti con cui si sta chattando"));
-    SCREEN_PRINT(("    out --> richiede una disconnessione dal network"));
-    SCREEN_PRINT(("    esc --> chiude l'applicazione\n"));
-    */
 }
 
 void Device_esc()

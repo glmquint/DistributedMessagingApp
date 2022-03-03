@@ -1,15 +1,8 @@
 002
-
+        
 Digita un comando:
 
 >>     signup <username> <password> --> crea un account sul server
->>     in <srv_port> <username> <password> --> richiede al server la conneione al servizio
->>     hanging --> riceve la lista degli utenti che hanno inviaato messaggi mentre si era offline
->>     show <username> --> riceve dal server i messaggi pendenti inviati da <username> mentre si era offline
->>     chat <username> --> avvia una chat con l'utente <username>
->>     share <file_name> --> invia il file <file_name> (nella current directory) al device su cui è connesso l'utente o gli utenti con cui si sta chattando
->>     out --> richiede una disconnessione dal network
+>>     in <srv_port> <username> <password> --> richiede al server la connessione al servizio
 >>     esc --> chiude l'applicazione
-
->> Arrivederci!
->> 
+>> Arrivederci
