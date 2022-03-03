@@ -1,0 +1,4 @@
+./serv 1337 << EOF
+not-a-valid-cmd
+esc
+EOF

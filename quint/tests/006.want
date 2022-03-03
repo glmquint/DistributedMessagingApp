@@ -1,0 +1,15 @@
+006
+        
+Digita un comando:
+
+>>     help --> mostra i dettagli dei comandi
+>>     list --> mostra un elenco degli utenti connessi
+>>     esc --> chiude il server
+>> comando non valido: not-a-valid-cmd
+>>         
+Digita un comando:
+
+>>     help --> mostra i dettagli dei comandi
+>>     list --> mostra un elenco degli utenti connessi
+>>     esc --> chiude il server
+>> Arrivederci

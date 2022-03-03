@@ -17,7 +17,6 @@
 # define DEBUG_PRINT(x) do {} while (0)
 #endif
 
-
 #define SCREEN_PRINT(x) printf("\r"); printf x; printf("\n>> "); fflush(stdout);
 
 struct Device_s {
@@ -35,7 +34,7 @@ struct Device_s {
     {"esc", {""}, 0, "chiude l'applicazione", false, true},
 }};
 
-void Device_Init(int argv, char *argc[])
+void Device_init(int argv, char *argc[])
 {
     if (argv < 2) {
         printf("Utilizzo: %s <porta>", argc[0]);
@@ -75,9 +74,9 @@ void Device_handleTCP(char* cmd, int sd)
 int main(int argv, char *argc[]) 
 {
     
-    Device_Init(argv, argc);
+    Device_init(argv, argc);
     Cmd_showMenu(Device.available_cmds, CMDLIST_LEN, false);
     IOMultiplex(Device.port, false, Device_handleSTDIN, Device_handleUDP, Device_handleTCP);
 
-    return 0;
+    return 1;
 }
