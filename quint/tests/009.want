@@ -1,0 +1,9 @@
+009
+        
+Digita un comando:
+
+>>     help --> mostra i dettagli dei comandi
+>>     list --> mostra un elenco degli utenti connessi
+>>     esc --> chiude il server
+>> [DEBUG]: ricevuta richiesta di login da parte di ( pippo : P!pp0 )
+[DEBUG]: richiesta di login accettata
