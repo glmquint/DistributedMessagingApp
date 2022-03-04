@@ -24,7 +24,7 @@ struct Device_s {
     bool is_logged_in;
     int port;
     Cmd available_cmds[CMDLIST_LEN];
-} Device = {false, -1,{
+} Device = {false, -1, {
     {"signup", {"username", "password"}, 2, "crea un account sul server", false, false},
     {"in", {"srv_port", "username", "password"}, 3, "richiede al server la connessione al servizio", false, false},
     {"hanging", {""}, 0, "riceve la lista degli utenti che hanno inviato messaggi mentre si era offline", true, false},
@@ -41,7 +41,7 @@ void Device_init(int argv, char *argc[])
         printf("Utilizzo: %s <porta>", argc[0]);
         exit(0);
     }
-    Device.port = atoi(argc[0]);
+    Device.port = atoi(argc[1]);
     Device.is_logged_in = false;
 }
 

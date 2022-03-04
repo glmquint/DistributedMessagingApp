@@ -16,7 +16,7 @@
 #define DEBUG_OFF
 
 #ifdef DEBUG_ON
-# define DEBUG_PRINT(x) printf x
+# define DEBUG_PRINT(x) printf("[DEBUG]: "); printf x; printf("\n"); fflush(stdout)
 #else
 # define DEBUG_PRINT(x) do {} while (0)
 #endif
