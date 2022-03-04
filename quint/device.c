@@ -77,20 +77,72 @@ void Device_in(int srv_port, char* username, char* password)
     close(sd);
 }
 
+void Device_signup(char* username, char* password)
+{
+}
+
+void Device_hanging()
+{
+}
+
+void Device_show(char* username)
+{
+}
+
+void Device_chat(char* username)
+{
+}
+
+void Device_share(char* file_name)
+{
+}
+
+void Device_out()
+{
+}
+
 void Device_handleSTDIN(char* buffer)
 {
-    char tmp[20], username[32], password[32];
+    char tmp[20], username[32], password[32], file_name[64];
     int srv_port;
 
     sscanf(buffer, "%s", tmp);
     if(!strcmp("esc", tmp))
         Device_esc();
-    else if (!strcmp("in", tmp)) {
+    else if (!strcmp("in", tmp) && !Device.is_logged_in) {
         if (sscanf(buffer, "%s %d %s %s", tmp, &srv_port, username, password) == 4) {
             Device_in(srv_port, username, password);
         } else {
             SCREEN_PRINT(("formato non valido per il comando %s %d %s %s", tmp, srv_port, username, password));
         }
+    } else if (!strcmp("signup", tmp) && !Device.is_logged_in) {
+        if (sscanf(buffer, "%s %s %s", tmp, username, password) == 3) {
+            Device_signup(username, password);
+        } else {
+            SCREEN_PRINT(("formato non valido per il comando %s %s %s", tmp, username, password));
+        }
+    } else if (!strcmp("hanging", tmp) && Device.is_logged_in) {
+        Device_hanging();
+    } else if (!strcmp("show", tmp) && Device.is_logged_in) {
+        if (sscanf(buffer, "%s %s", tmp, username) == 2) {
+            Device_show(username);
+        } else {
+            SCREEN_PRINT(("formato non valido per il comando %s %s", tmp, username));
+        }
+    } else if (!strcmp("chat", tmp) && Device.is_logged_in) {
+        if (sscanf(buffer, "%s %s", tmp, username) == 2) {
+            Device_chat(username);
+        } else {
+            SCREEN_PRINT(("formato non valido per il comando %s %s", tmp, username));
+        }
+    } else if (!strcmp("share", tmp) && Device.is_logged_in) {
+        if (sscanf(buffer, "%s %s", tmp, file_name) == 2) {
+            Device_share(file_name);
+        } else {
+            SCREEN_PRINT(("formato non valido per il comando %s %s", tmp, file_name));
+        }
+    } else if (!strcmp("out", tmp) && Device.is_logged_in) {
+        Device_out();
     } else {
         SCREEN_PRINT(("comando non valido: %s", tmp));
     }

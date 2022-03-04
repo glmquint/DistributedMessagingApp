@@ -42,16 +42,22 @@ void Server_esc()
     exit(0);
 }
 
+void Server_list()
+{
+}
+
 void Server_handleSTDIN(char* buffer)
 {
     char tmp[20];
     sscanf(buffer, "%s", tmp);
     if(!strcmp("esc", tmp))
         Server_esc();
-    else if(!strcmp("help", tmp)){
+    else if(!strcmp("help", tmp)) {
         Cmd_showMenu(Server.available_cmds, CMDLIST_LEN, true);
         return;
-    } else
+    } else if(!strcmp("list", tmp))
+        Server_list();
+    else
         SCREEN_PRINT(("comando non valido: %s", tmp));
     Cmd_showMenu(Server.available_cmds, CMDLIST_LEN, true);
 }
