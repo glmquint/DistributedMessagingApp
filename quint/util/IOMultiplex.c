@@ -37,7 +37,8 @@ void IOMultiplex(int port,
                 bool use_udp, 
                 void (*handleSTDIN)(char* buffer),
                 void (*handleUDP)(int sd),
-                void (*handleTCP)(char* cmd, int sd))
+                //void (*handleTCP)(char* cmd, int sd))
+                void (*handleTCP)(int sd))
 {
     int ret, newfd, listener, i, boot;
     socklen_t addrlen;
@@ -59,6 +60,7 @@ void IOMultiplex(int port,
     }
 
     listen(listener, 10);
+    DEBUG_PRINT(("in ascolto sulla porta %d", port));
 
     FD_ZERO(&(iom.master));
     FD_ZERO(&(iom.read_fds));
@@ -115,6 +117,7 @@ void IOMultiplex(int port,
                 }
                 else
                 {
+                    /*
                     memset(buffer, 0, sizeof(buffer));
                     ret = recv(i, (void *)buffer, REQ_LEN, 0);
                     if (ret < 0)
@@ -124,6 +127,8 @@ void IOMultiplex(int port,
                     }
 
                     handleTCP(buffer, i);
+                    */
+                    handleTCP(i);
                 }
             }
         }

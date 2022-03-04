@@ -12,4 +12,5 @@ void IOMultiplex(int port,
                 bool use_udp, 
                 void (*handleSTDIN)(char* buffer),
                 void (*handleUDP)(int sd),
-                void (*handleTCP)(char* cmd, int sd));
+                //void (*handleTCP)(char* cmd, int sd));
+                void (*handleTCP)(int sd));

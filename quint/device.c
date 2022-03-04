@@ -5,6 +5,7 @@
 #include <stdbool.h>
 #include "util/IOMultiplex.h"
 #include "util/cmd.h"
+#include "util/network.h"
 
 #define STDIN_BUF_LEN 128
 #define CMDLIST_LEN 8
@@ -52,7 +53,28 @@ void Device_esc()
 
 void Device_in(int srv_port, char* username, char* password)
 {
+    char *tmp, cmd[6];
+    char credentials[70];
     DEBUG_PRINT(("richiesta di login sul server localhost:%d con credenziali ( %s : %s )", srv_port, username, password));
+    int sd = net_initTCP(srv_port);
+    sprintf(credentials, "%s %s", username, password);
+    net_sendTCP(sd, "LOGIN", credentials);
+    DEBUG_PRINT(("inviata richiesta di signin, ora in attesa"));
+    net_receiveTCP(sd, cmd, &tmp);
+    DEBUG_PRINT(("ricevuta risposta dal server"));
+    if (strlen(cmd) != 0) {
+        if (!strcmp("OK-OK", cmd)) {
+            SCREEN_PRINT(("signin avvenuta con successo!"));
+            Device.is_logged_in = true;
+        } else if (!strcmp("UKNWN", cmd)) {
+            SCREEN_PRINT(("signin rifiutata: utente sconosciuto"));
+        } else {
+            SCREEN_PRINT(("errore durante la signin"));
+        }
+    } else {
+        DEBUG_PRINT(("risposta vuota da parte del server durante la signin"));
+    }
+    close(sd);
 }
 
 void Device_handleSTDIN(char* buffer)
@@ -80,9 +102,10 @@ void Device_handleUDP(int sd)
     printf("Device_handleUDP(%d)", sd);
 }
 
-void Device_handleTCP(char* cmd, int sd)
+//void Device_handleTCP(char* cmd, int sd)
+void Device_handleTCP(int sd)
 {
-    printf("Device_handleTCP(%s, %d)", cmd, sd);
+    printf("Device_handleTCP(%d)", sd);
 }
 
 int main(int argv, char *argc[]) 

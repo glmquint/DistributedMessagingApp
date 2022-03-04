@@ -7,10 +7,11 @@
 #include <stdbool.h>
 #include "util/IOMultiplex.h"
 #include "util/cmd.h"
+#include "util/network.h"
 
 #define CMDLIST_LEN 3
 
-#define DEBUG_OFF
+#define DEBUG_ON
 
 #ifdef DEBUG_ON
 # define DEBUG_PRINT(x) printf("[DEBUG]: "); printf x; printf("\n"); fflush(stdout)
@@ -59,9 +60,38 @@ void Server_handleUDP(int sd)
 {
 }
 
-void Server_handleTCP(char* cmd, int sd)
+bool Server_checkCredentials(char* username, char* password)
 {
-    DEBUG_PRINT(("recieved on sd(%d): %s", sd, cmd));
+    return !strcmp(username, "pippo") && !strcmp(password, "P!pp0");
+}
+
+//void Server_handleTCP(char* cmd, int sd)
+void Server_handleTCP(int sd)
+{
+    char *tmp, cmd[6];
+    char username[32], password[32];
+    // DEBUG_PRINT(("ricevuto messaggio TCP su socket: %d", sd));
+    net_receiveTCP(sd, cmd, &tmp);
+    //printf("  [debug] tmp=%x\n", tmp);
+    if (!strcmp("LOGIN", cmd)) {
+        //DEBUG_PRINT(("corpo di signin: %s", tmp));
+        if (sscanf(tmp, "%s %s", username, password) == 2){
+            DEBUG_PRINT(("ricevuta richiesta di login da parte di ( %s : %s )", username, password));
+            if (Server_checkCredentials(username, password)) {
+                net_sendTCP(sd, "OK-OK", "");
+                DEBUG_PRINT(("richiesta di login accettata"));
+            } else {
+                net_sendTCP(sd, "UKNWN", "");
+                DEBUG_PRINT(("rifiutata richiesta di login da utente sconosciuto"));
+            }
+        } else {
+            net_sendTCP(sd, "ERROR", "");
+            DEBUG_PRINT(("rifiutata richiesta di login non valida"));
+        }
+    }
+    free(tmp);
+    close(sd);
+    FD_CLR(sd, &iom.master);
 }
 
 int main(int argv, char *argc[]){
