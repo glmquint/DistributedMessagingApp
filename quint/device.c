@@ -59,22 +59,25 @@ void Device_in(int srv_port, char* username, char* password)
     int sd = net_initTCP(srv_port);
     sprintf(credentials, "%s %s", username, password);
     net_sendTCP(sd, "LOGIN", credentials);
-    DEBUG_PRINT(("inviata richiesta di signin, ora in attesa"));
+    DEBUG_PRINT(("inviata richiesta di login, ora in attesa"));
     net_receiveTCP(sd, cmd, &tmp);
     DEBUG_PRINT(("ricevuta risposta dal server"));
     if (strlen(cmd) != 0) {
         if (!strcmp("OK-OK", cmd)) {
-            SCREEN_PRINT(("signin avvenuta con successo!"));
+            SCREEN_PRINT(("login avvenuta con successo!"));
             Device.is_logged_in = true;
         } else if (!strcmp("UKNWN", cmd)) {
-            SCREEN_PRINT(("signin rifiutata: utente sconosciuto"));
+            SCREEN_PRINT(("login rifiutata: utente sconosciuto"));
         } else {
-            SCREEN_PRINT(("errore durante la signin"));
+            SCREEN_PRINT(("errore durante la login"));
         }
     } else {
-        DEBUG_PRINT(("risposta vuota da parte del server durante la signin"));
+        DEBUG_PRINT(("risposta vuota da parte del server durante la login"));
     }
+    if (tmp)
+        free(tmp);
     close(sd);
+    FD_CLR(sd, &iom.master);
 }
 
 void Device_signup(char* username, char* password)

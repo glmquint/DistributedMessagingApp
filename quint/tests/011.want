@@ -6,9 +6,9 @@ Digita un comando:
 >>     in <srv_port> <username> <password> --> richiede al server la connessione al servizio
 >>     esc --> chiude l'applicazione
 >> [DEBUG]: richiesta di login sul server localhost:4242 con credenziali ( unregistered-user : some-pass )
-[DEBUG]: inviata richiesta di signin, ora in attesa
+[DEBUG]: inviata richiesta di login, ora in attesa
 [DEBUG]: ricevuta risposta dal server
-signin rifiutata: utente sconosciuto
+login rifiutata: utente sconosciuto
 >>         
 Digita un comando:
 
