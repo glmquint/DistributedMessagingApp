@@ -21,19 +21,69 @@
 
 #define SCREEN_PRINT(x) printf("\r"); printf x; printf("\n>> "); fflush(stdout);
 
+typedef struct UserEntry_s UserEntry;
+struct UserEntry_s {
+    char user_dest[32];
+    int port;
+    time_t timestamp_login;
+    time_t timestamp_logout;
+    UserEntry* next;
+};
+
+typedef struct CredentialEntry_s CredentialEntry;
+struct CredentialEntry_s {
+    char username[32];
+    char password[32];
+    CredentialEntry* next;
+};
+
 struct Server_s {
     int port;
     Cmd available_cmds[CMDLIST_LEN];
+    UserEntry* user_register_head;
+    UserEntry* user_register_tail;
+    CredentialEntry* credentials_head;
+    CredentialEntry* credentials_tail;
 } Server = {4242,{
     {"help", {""}, 0, "mostra i dettagli dei comandi", false, true},
     {"list", {""}, 0, "mostra un elenco degli utenti connessi", false, true},
     {"esc", {""}, 0, "chiude il server", false, true}
-}};
+    }, NULL, NULL, NULL, NULL};
 
 void Server_init(int argv, char *argc[])
 {
     if (argv > 1)
         Server.port = atoi(argc[1]);
+    FILE* fp;
+    char* line = NULL;
+    size_t len = 0;
+    ssize_t read;
+    char shadow_file[] = "shadow"; // contiene le credenziali di alcuni utenti già registrati
+
+    fp = fopen(shadow_file, "r");
+    if (fp == NULL) {
+        DEBUG_PRINT(("Impossibile aprire file %s", shadow_file));
+    } else {
+        while ((read = getline(&line, &len, fp)) != -1) {
+            CredentialEntry* this_user = malloc(sizeof(CredentialEntry));
+            if (sscanf(line, "%s %s", this_user->username, this_user->password) != 2) {
+                DEBUG_PRINT(("errore nel parsing di un record nel file %s", shadow_file));
+            } else {
+                this_user->next = NULL;
+                if (Server.credentials_head == NULL) {
+                    Server.credentials_head = this_user;
+                    Server.credentials_tail = this_user;
+                } else {
+                    Server.credentials_tail->next = this_user;
+                    Server.credentials_tail = this_user;
+                }
+                DEBUG_PRINT(("credenziali caricate: %s %s", this_user->username, this_user->password));
+            }
+        }
+    }
+    fclose(fp);
+    if (line)
+        free(line);
 }
 
 void Server_esc()
@@ -68,17 +118,43 @@ void Server_handleUDP(int sd)
 
 bool Server_checkCredentials(char* username, char* password)
 {
-    return !strcmp(username, "pippo") && !strcmp(password, "P!pp0");
+    for (CredentialEntry* elem = Server.credentials_head; elem!=NULL; elem = elem->next) {
+        if (!strcmp(username, elem->username) && !strcmp(password, elem->password))
+            return true;
+    }
+    return false;
+    // return !strcmp(username, "pippo") && !strcmp(password, "P!pp0");
 }
 
-//void Server_handleTCP(char* cmd, int sd)
+bool Server_signupCredentials(char* username, char* password)
+{
+    for (CredentialEntry* elem = Server.credentials_head; elem!=NULL; elem = elem->next) {
+        if (!strcmp(username, elem->username))
+            return false;
+    }
+    CredentialEntry* this_user = malloc(sizeof(CredentialEntry));
+    this_user->next = NULL;
+    sscanf(username, "%s", this_user->username);
+    sscanf(password, "%s", this_user->password);
+    if (Server.credentials_head == NULL) {
+        Server.credentials_head = this_user;
+        Server.credentials_tail = this_user;
+    } else {
+        Server.credentials_tail->next = this_user;
+        Server.credentials_tail = this_user;
+    }
+    DEBUG_PRINT(("credenziali caricate: %s %s", this_user->username, this_user->password));
+    return true;
+
+    // return strcmp(username, "pippo"); // && strcmp(password, "P!pp0");
+}
+
 void Server_handleTCP(int sd)
 {
     char *tmp, cmd[6];
     char username[32], password[32];
     // DEBUG_PRINT(("ricevuto messaggio TCP su socket: %d", sd));
     net_receiveTCP(sd, cmd, &tmp);
-    //printf("  [debug] tmp=%x\n", tmp);
     if (!strcmp("LOGIN", cmd)) {
         //DEBUG_PRINT(("corpo di signin: %s", tmp));
         if (sscanf(tmp, "%s %s", username, password) == 2){
@@ -94,8 +170,25 @@ void Server_handleTCP(int sd)
             net_sendTCP(sd, "ERROR", "");
             DEBUG_PRINT(("rifiutata richiesta di login non valida"));
         }
+    } else if (!strcmp("SIGUP", cmd)) {
+        if (sscanf(tmp, "%s %s", username, password) == 2){
+            DEBUG_PRINT(("ricevuta richiesta di signup da parte di ( %s : %s )", username, password));
+            if (Server_signupCredentials(username, password)) {
+                net_sendTCP(sd, "OK-OK", "");
+                DEBUG_PRINT(("richiesta di signup accettata"));
+            } else {
+                net_sendTCP(sd, "KNOWN", "");
+                DEBUG_PRINT(("rifiutata richiesta di signup da utente già registrato"));
+            }
+        } else {
+            net_sendTCP(sd, "ERROR", "");
+            DEBUG_PRINT(("rifiutata richiesta di signup non valida"));
+        }
+    } else {
+        DEBUG_PRINT(("ricevuto comando remoto non valido: %s", cmd));
     }
-    free(tmp);
+    if (tmp)
+        free(tmp);
     close(sd);
     FD_CLR(sd, &iom.master);
 }

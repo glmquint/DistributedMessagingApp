@@ -82,6 +82,30 @@ void Device_in(int srv_port, char* username, char* password)
 
 void Device_signup(char* username, char* password)
 {
+    char *tmp, cmd[6];
+    char credentials[70];
+    int sd = net_initTCP(4242); // presupponiamo che il server si trovi a questa porta!!
+    sprintf(credentials, "%s %s", username, password);
+    net_sendTCP(sd, "SIGUP", credentials);
+    DEBUG_PRINT(("inviata richiesta di signup, ora in attesa"));
+    net_receiveTCP(sd, cmd, &tmp);
+    DEBUG_PRINT(("ricevuta risposta dal server"));
+    if (strlen(cmd) != 0) {
+        if (!strcmp("OK-OK", cmd)) {
+            SCREEN_PRINT(("signup avvenuta con successo!"));
+            Device.is_logged_in = true;
+        } else if (!strcmp("KNOWN", cmd)) {
+            SCREEN_PRINT(("signup rifiutata: utente già registrato. (Usare il comando 'in' per collegarsi)"));
+        } else {
+            SCREEN_PRINT(("errore durante la signup"));
+        }
+    } else {
+        DEBUG_PRINT(("risposta vuota da parte del server durante la signup"));
+    }
+    if (tmp)
+        free(tmp);
+    close(sd);
+    FD_CLR(sd, &iom.master);
 }
 
 void Device_hanging()
