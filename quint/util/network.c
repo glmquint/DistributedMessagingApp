@@ -7,6 +7,14 @@
 #include <netinet/in.h>
 #include "network.h"
 
+#define DEBUG_OFF
+
+#ifdef DEBUG_ON
+# define DEBUG_PRINT(x) printf("  [debug]: "); printf x; printf("\n"); fflush(stdout)
+#else
+# define DEBUG_PRINT(x) do {} while (0)
+#endif
+
 #define REQ_LEN 6 /* LOGIN\0 */
 
 int net_initTCP(int sv_port)
@@ -30,18 +38,18 @@ void net_sendTCP(int sd, char protocol[6], char* buffer)
 {
     int len = strlen(buffer);
     uint16_t lmsg = htons(len);
-    // printf("[debug] send protocol: %s\n", protocol);
+    DEBUG_PRINT(("send protocol: %s", protocol));
     if (send(sd, (void *)protocol, REQ_LEN, 0) < 0) {
         perror("Errore in fase di invio protocollo");
         exit(-1);
     }
-    // printf("[debug] send buffer length: %d\n", len);
+    DEBUG_PRINT(("send buffer length: %d", len));
     if (send(sd, (void *)&lmsg, sizeof(uint16_t), 0) < 0) {
         perror("Errore in fase di invio lunghezza messaggio");
         exit(-1);
     }
     if (len > 0) { // non eseguire la send se il messaggio è vuoto
-        // printf("[debug] send buffer: %s\n", buffer);
+        DEBUG_PRINT(("send buffer: %s", buffer));
         if (send(sd, (char *)buffer, len, 0) < len) {
             perror("Errore in fase di invio messaggio");
             exit(-1);
@@ -55,33 +63,33 @@ void net_receiveTCP(int sd, char protocol[6], char** buffer)
     int len;
     uint16_t lmsg;
 
-    // printf("  [debug] before buffer=%x\n", *buffer);
+    // DEBUG_PRINT(("  before buffer=%x", *buffer));
 
     if (recv(sd, (void *)protocol, REQ_LEN, 0) < REQ_LEN) {
         perror("Errore in fase di ricezione protocollo");
         exit(-1);
     }
-    // printf("[debug] received protocol: %s\n", protocol);
+    DEBUG_PRINT(("received protocol: %s", protocol));
 
     if (recv(sd, (void *)&lmsg, sizeof(uint16_t), 0) < 0) {
         perror("Errore in fase di ricezione lunghezza messaggio");
         exit(-1);
     }
     len = ntohs(lmsg);
-    // printf("[debug] received buffer length: %d\n", len);
+    DEBUG_PRINT(("received buffer length: %d", len));
 
     if (len > 0) { // se il messaggio è vuoto è inutile fare la recv
         *buffer = malloc(len);
-        memset(*buffer, 0, len);
+        memset(*buffer, 0, len+1);
         if (recv(sd, (void *)*buffer, len, 0) < len) {
             char error_msg[64];
             sprintf(error_msg, "Errore in fase di ricezione messaggio (%d)", len);
             perror(error_msg);
             exit(1);
         }
-        // printf("[debug] received buffer: %s\n", buffer);
+        DEBUG_PRINT(("received buffer: %s", *buffer));
     } else {
         *buffer = (void*)0; // NULL
     }
-    // printf("  [debug] after buffer=%x\n", *buffer);
+    // DEBUG_PRINT(("  after buffer=%x", *buffer));
 }

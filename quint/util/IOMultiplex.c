@@ -53,8 +53,7 @@ void IOMultiplex(int port,
     my_addr.sin_addr.s_addr = INADDR_ANY;
 
     ret = bind(listener, (struct sockaddr *)&my_addr, sizeof(my_addr));
-    if (ret < 0)
-    {
+    if (ret < 0) {
         perror("Bind listener non riuscita\n");
         exit(0);
     }
@@ -72,8 +71,7 @@ void IOMultiplex(int port,
     if (use_udp) {
         boot = socket(AF_INET, SOCK_DGRAM, 0);
         ret = bind(boot, (struct sockaddr *)&my_addr, sizeof(my_addr));
-        if (ret < 0)
-        {
+        if (ret < 0) {
             perror("Bind UDP non riuscita\n");
             exit(0);
         }
@@ -83,51 +81,32 @@ void IOMultiplex(int port,
 
     iom.fdmax = (listener > boot) ? listener : boot;
 
-    while (1)
-    {
+    while (1) {
         iom.read_fds = iom.master;
         i = select(iom.fdmax + 1, &(iom.read_fds), NULL, NULL, NULL);
-        if (i < 0)
-        {
+        if (i < 0) {
             perror("select: ");
             exit(1);
         }
 
-        for (i = 0; i <= iom.fdmax; i++)
-        {
-            if (FD_ISSET(i, &(iom.read_fds)))
-            {
+        for (i = 0; i <= iom.fdmax; i++) {
+            if (FD_ISSET(i, &(iom.read_fds))) {
                 DEBUG_PRINT(("%d is set\n", i));
-                if (i == listener)
-                {
+                if (i == listener) {
                     addrlen = sizeof(cl_addr);
                     newfd = accept(listener, (struct sockaddr *)&cl_addr, &addrlen);
                     FD_SET(newfd, & iom.master);
                     if (newfd > iom.fdmax)
                         iom.fdmax = newfd;
                 }
-                else if (i == STDIN)
-                {
+                else if (i == STDIN) {
                     if (fgets(buffer, sizeof buffer, stdin))
                         handleSTDIN(buffer);
                 }
-                else if (i == boot)
-                {
+                else if (i == boot) {
                     handleUDP(i);
                 }
-                else
-                {
-                    /*
-                    memset(buffer, 0, sizeof(buffer));
-                    ret = recv(i, (void *)buffer, REQ_LEN, 0);
-                    if (ret < 0)
-                    {
-                        perror("Errore in fase di ricezione1: ");
-                        exit(1);
-                    }
-
-                    handleTCP(buffer, i);
-                    */
+                else {
                     handleTCP(i);
                 }
             }
