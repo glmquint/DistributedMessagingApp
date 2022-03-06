@@ -24,17 +24,11 @@
 typedef struct UserEntry_s UserEntry;
 struct UserEntry_s {
     char user_dest[32];
+    char password[32];
     int port;
     time_t timestamp_login;
     time_t timestamp_logout;
     UserEntry* next;
-};
-
-typedef struct CredentialEntry_s CredentialEntry;
-struct CredentialEntry_s {
-    char username[32];
-    char password[32];
-    CredentialEntry* next;
 };
 
 struct Server_s {
@@ -42,13 +36,13 @@ struct Server_s {
     Cmd available_cmds[CMDLIST_LEN];
     UserEntry* user_register_head;
     UserEntry* user_register_tail;
-    CredentialEntry* credentials_head;
-    CredentialEntry* credentials_tail;
+    // CredentialEntry* credentials_head;
+    // CredentialEntry* credentials_tail;
 } Server = {4242,{
     {"help", {""}, 0, "mostra i dettagli dei comandi", false, true},
     {"list", {""}, 0, "mostra un elenco degli utenti connessi", false, true},
     {"esc", {""}, 0, "chiude il server", false, true}
-    }, NULL, NULL, NULL, NULL};
+    }, NULL, NULL};
 
 void Server_init(int argv, char *argc[])
 {
@@ -65,19 +59,19 @@ void Server_init(int argv, char *argc[])
         DEBUG_PRINT(("Impossibile aprire file %s", shadow_file));
     } else {
         while ((read = getline(&line, &len, fp)) != -1) {
-            CredentialEntry* this_user = malloc(sizeof(CredentialEntry));
-            if (sscanf(line, "%s %s", this_user->username, this_user->password) != 2) {
+            UserEntry* this_user = malloc(sizeof(UserEntry));
+            if (sscanf(line, "%s %s", this_user->user_dest, this_user->password) != 2) {
                 DEBUG_PRINT(("errore nel parsing di un record nel file %s", shadow_file));
             } else {
                 this_user->next = NULL;
-                if (Server.credentials_head == NULL) {
-                    Server.credentials_head = this_user;
-                    Server.credentials_tail = this_user;
+                if (Server.user_register_head == NULL) {
+                    Server.user_register_head = this_user;
+                    Server.user_register_tail = this_user;
                 } else {
-                    Server.credentials_tail->next = this_user;
-                    Server.credentials_tail = this_user;
+                    Server.user_register_tail->next = this_user;
+                    Server.user_register_tail = this_user;
                 }
-                DEBUG_PRINT(("credenziali caricate: %s %s", this_user->username, this_user->password));
+                DEBUG_PRINT(("credenziali caricate: %s %s", this_user->user_dest, this_user->password));
             }
         }
     }
@@ -118,8 +112,8 @@ void Server_handleUDP(int sd)
 
 bool Server_checkCredentials(char* username, char* password)
 {
-    for (CredentialEntry* elem = Server.credentials_head; elem!=NULL; elem = elem->next) {
-        if (!strcmp(username, elem->username) && !strcmp(password, elem->password))
+    for (UserEntry* elem = Server.user_register_head; elem!=NULL; elem = elem->next) {
+        if (!strcmp(username, elem->user_dest) && !strcmp(password, elem->password))
             return true;
     }
     return false;
@@ -128,22 +122,22 @@ bool Server_checkCredentials(char* username, char* password)
 
 bool Server_signupCredentials(char* username, char* password)
 {
-    for (CredentialEntry* elem = Server.credentials_head; elem!=NULL; elem = elem->next) {
-        if (!strcmp(username, elem->username))
+    for (UserEntry* elem = Server.user_register_head; elem!=NULL; elem = elem->next) {
+        if (!strcmp(username, elem->user_dest))
             return false;
     }
-    CredentialEntry* this_user = malloc(sizeof(CredentialEntry));
+    UserEntry* this_user = malloc(sizeof(UserEntry));
     this_user->next = NULL;
-    sscanf(username, "%s", this_user->username);
+    sscanf(username, "%s", this_user->user_dest);
     sscanf(password, "%s", this_user->password);
-    if (Server.credentials_head == NULL) {
-        Server.credentials_head = this_user;
-        Server.credentials_tail = this_user;
+    if (Server.user_register_head == NULL) {
+        Server.user_register_head = this_user;
+        Server.user_register_tail = this_user;
     } else {
-        Server.credentials_tail->next = this_user;
-        Server.credentials_tail = this_user;
+        Server.user_register_tail->next = this_user;
+        Server.user_register_tail = this_user;
     }
-    DEBUG_PRINT(("credenziali caricate: %s %s", this_user->username, this_user->password));
+    DEBUG_PRINT(("credenziali caricate: %s %s", this_user->user_dest, this_user->password));
     return true;
 
     // return strcmp(username, "pippo"); // && strcmp(password, "P!pp0");
