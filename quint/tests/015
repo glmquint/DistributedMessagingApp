@@ -1,0 +1,11 @@
+pkill serv
+./serv 1>/dev/null &
+./dev 5001 2>&1 << EOF
+signup new-user new-pass
+esc
+EOF
+./dev 5001 2>&1 << EOF
+signup new-user new-pass
+esc
+EOF
+pkill serv
