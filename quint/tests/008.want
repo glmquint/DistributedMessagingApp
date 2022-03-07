@@ -18,4 +18,5 @@ Digita un comando:
 >>     share <file_name> --> invia il file <file_name> (nella current directory) al device su cui è connesso l'utente o gli utenti con cui si sta chattando
 >>     out --> richiede la disconnessione dal network
 >>     esc --> chiude l'applicazione
->> Arrivederci
+>> [DEBUG]: disconnessione avvennuta con successo
+Arrivederci

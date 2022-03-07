@@ -72,34 +72,43 @@ void Device_updateCachedLogout(char* username)
             } else {
                 DEBUG_PRINT(("impossibile aggiornare il server su l'ultima disconnessione. Nuovo tentativo al prossimo avvio dell'applicazione"));
             }
+        } else {
+            DEBUG_PRINT(("impossibile leggere timestamp dal file %s", disconnect_file));
         }
     }
+}
+
+void Device_out()
+{
+    int sd = net_initTCP(Device.srv_port);
+    if (sd != -1) {
+        char user_ts[64];
+        sprintf(user_ts, "%s %d", Device.username, 0);
+        net_sendTCP(sd, "LGOUT", user_ts);
+        close(sd);
+        FD_CLR(sd, &iom.master);
+        DEBUG_PRINT(("disconnessione avvennuta con successo"));
+    } else { 
+        // se non è possibile avvisare il server della disconnessione
+        // salvare l'istante di disconnessione e comunicarlo alla prossima riconenssione
+        FILE* fp;
+        char disconnect_file[50];
+        sprintf(disconnect_file, ".%s-disconnect", Device.username);
+        fp = fopen(disconnect_file, "w");
+        if (fp == NULL) {
+            DEBUG_PRINT(("impossibile aprire file %s", disconnect_file));
+        } else {
+            fprintf(fp, "%ld", getTimestamp());
+            DEBUG_PRINT(("timestamp di disconnessione pendente salvato in %s", disconnect_file));
+        }
+    }
+    Device.is_logged_in = false;
 }
 
 void Device_esc()
 {
     if (Device.is_logged_in) {
-        int sd = net_initTCP(Device.srv_port);
-        if (sd != -1) {
-            char user_ts[64];
-            sprintf(user_ts, "%s %d", Device.username, 0);
-            net_sendTCP(sd, "LGOUT", user_ts);
-            close(sd);
-            FD_CLR(sd, &iom.master);
-        } else { 
-            // se non è possibile avvisare il server della disconnessione
-            // salvare l'istante di disconnessione e comunicarlo alla prossima riconenssione
-            FILE* fp;
-            char disconnect_file[50];
-            sprintf(disconnect_file, ".%s-disconnect", Device.username);
-            fp = fopen(disconnect_file, "w");
-            if (fp == NULL) {
-                DEBUG_PRINT(("impossibile aprire file %s", disconnect_file));
-            } else {
-                fprintf(fp, "%ld", getTimestamp());
-                DEBUG_PRINT(("timestamp di disconnessione pendente salvato in %s", disconnect_file));
-            }
-        }
+        Device_out();
     }
     printf("Arrivederci\n");
     exit(0);
@@ -182,10 +191,6 @@ void Device_chat(char* username)
 }
 
 void Device_share(char* file_name)
-{
-}
-
-void Device_out()
 {
 }
 
