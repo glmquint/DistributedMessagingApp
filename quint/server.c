@@ -61,7 +61,7 @@ void Server_init(int argv, char *argc[])
     } else {
         while ((read = getline(&line, &len, fp)) != -1) {
             UserEntry* this_user = malloc(sizeof(UserEntry));
-            if (sscanf(line, "%s %s", this_user->user_dest, this_user->password) != 2) {
+            if (sscanf(line, "%s %s %ld %ld", this_user->user_dest, this_user->password, &this_user->timestamp_login, &this_user->timestamp_logout) != 4) {
                 DEBUG_PRINT(("errore nel parsing di un record nel file %s", shadow_file));
             } else {
                 this_user->next = NULL;
