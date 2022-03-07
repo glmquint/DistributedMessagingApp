@@ -5,11 +5,10 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include <stdbool.h>
-#include <sys/time.h>
-#include <time.h>
 #include "util/IOMultiplex.h"
 #include "util/cmd.h"
 #include "util/network.h"
+#include "util/time.h"
 
 #define CMDLIST_LEN 3
 
@@ -96,9 +95,7 @@ void Server_list()
         total_users++;
         if (elem->timestamp_login > elem->timestamp_logout) {
             logged_in_users++;
-            char* datetime = ctime(&elem->timestamp_login);
-            datetime[strcspn(datetime, "\r\n")] = '\0';
-            SCREEN_PRINT(("%s*%s*%d", elem->user_dest, datetime, elem->port));
+            SCREEN_PRINT(("%s*%s*%d", elem->user_dest, getDateTime(elem->timestamp_login), elem->port));
             //SCREEN_PRINT(("%s*%ld*%d", elem->user_dest, elem->timestamp_login, elem->port));
         }
     }
@@ -123,13 +120,6 @@ void Server_handleSTDIN(char* buffer)
 
 void Server_handleUDP(int sd)
 {
-}
-
-time_t getTimestamp() 
-{
-    struct timeval tv;
-    gettimeofday(&tv, NULL);
-    return tv.tv_sec;
 }
 
 bool Server_checkCredentials(char* username, char* password, int dev_port)

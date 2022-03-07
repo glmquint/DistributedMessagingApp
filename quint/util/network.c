@@ -29,7 +29,7 @@ int net_initTCP(int sv_port)
 
     if (connect(sd, (struct sockaddr *)&sv_addr, sizeof(sv_addr)) < 0) {
         perror("Errore in fase di connessione");
-        exit(-1);
+        return -1;
     }
     return sd;
 }
