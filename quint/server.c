@@ -37,13 +37,14 @@ struct Server_s {
     Cmd available_cmds[CMDLIST_LEN];
     UserEntry* user_register_head;
     UserEntry* user_register_tail;
+    char* shadow_file;
     // CredentialEntry* credentials_head;
     // CredentialEntry* credentials_tail;
 } Server = {4242,{
     {"help", {""}, 0, "mostra i dettagli dei comandi", false, true},
     {"list", {""}, 0, "mostra un elenco degli utenti connessi", false, true},
     {"esc", {""}, 0, "chiude il server", false, true}
-    }, NULL, NULL};
+    }, NULL, NULL, "shadow"};
 
 void Server_init(int argv, char *argc[])
 {
@@ -53,16 +54,15 @@ void Server_init(int argv, char *argc[])
     char* line = NULL;
     size_t len = 0;
     ssize_t read;
-    char shadow_file[] = "shadow"; // contiene le credenziali di alcuni utenti già registrati
 
-    fp = fopen(shadow_file, "r");
+    fp = fopen(Server.shadow_file, "r");
     if (fp == NULL) {
-        DEBUG_PRINT(("Impossibile aprire file %s", shadow_file));
+        DEBUG_PRINT(("Impossibile aprire file %s", Server.shadow_file));
     } else {
         while ((read = getline(&line, &len, fp)) != -1) {
             UserEntry* this_user = malloc(sizeof(UserEntry));
             if (sscanf(line, "%s %s %ld %ld", this_user->user_dest, this_user->password, &this_user->timestamp_login, &this_user->timestamp_logout) != 4) {
-                DEBUG_PRINT(("errore nel parsing di un record nel file %s", shadow_file));
+                DEBUG_PRINT(("errore nel parsing di un record nel file %s", Server.shadow_file));
             } else {
                 this_user->next = NULL;
                 if (Server.user_register_head == NULL) {
@@ -81,8 +81,25 @@ void Server_init(int argv, char *argc[])
     }
 }
 
+void Server_saveUserEntry()
+{
+    FILE* fp;
+    fp = fopen(Server.shadow_file, "w");
+    if (fp == NULL) {
+        DEBUG_PRINT(("impossibile aprire file: %s", Server.shadow_file));
+        return;
+    }
+    int count = 0;
+    for (UserEntry* elem = Server.user_register_head; elem != NULL; elem = elem->next) {
+        fprintf(fp, "%s %s %ld %ld\n", elem->user_dest, elem->password, elem->timestamp_login, elem->timestamp_logout);
+        count++;
+    }
+    DEBUG_PRINT(("%d utenti salvati in %s", count, Server.shadow_file));
+}
+
 void Server_esc()
 {
+    Server_saveUserEntry();
     printf("Arrivederci\n");
     exit(0);
 }
