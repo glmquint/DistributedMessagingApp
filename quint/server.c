@@ -165,6 +165,7 @@ void Server_handleTCP(int sd)
     char *tmp, cmd[6];
     char username[32], password[32];
     int dev_port;
+    time_t logout_ts;
     // DEBUG_PRINT(("ricevuto messaggio TCP su socket: %d", sd));
     net_receiveTCP(sd, cmd, &tmp);
     if (!strcmp("LOGIN", cmd)) {
@@ -197,10 +198,13 @@ void Server_handleTCP(int sd)
             DEBUG_PRINT(("rifiutata richiesta di signup non valida"));
         }
     } else if (!strcmp("LGOUT", cmd)) {
-        if (tmp != NULL && sscanf(tmp, "%s", username) == 1) {
+        if (tmp != NULL && sscanf(tmp, "%s %ld", username, &logout_ts) == 2) {
             for (UserEntry* elem = Server.user_register_head; elem != NULL; elem = elem->next) {
                 if (!strcmp(elem->user_dest, username)) {
-                    elem->timestamp_logout = getTimestamp();
+                    if (logout_ts == 0)
+                        elem->timestamp_logout = getTimestamp();
+                    else
+                        elem->timestamp_logout = logout_ts;
                     DEBUG_PRINT(("utente %s disconnesso", username));
                     break;
                 }

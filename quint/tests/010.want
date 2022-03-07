@@ -10,4 +10,3 @@ Digita un comando:
 >>     esc --> chiude il server
 >> [DEBUG]: ricevuta richiesta di login da parte di ( unregistered-user : some-pass )
 [DEBUG]: rifiutata richiesta di login da utente sconosciuto
-[DEBUG]: richiesta di disconnessione anonima. Nessun effetto

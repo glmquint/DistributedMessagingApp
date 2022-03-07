@@ -48,12 +48,59 @@ void Device_init(int argv, char *argc[])
     Device.is_logged_in = false;
 }
 
+void Device_updateCachedLogout(char* username)
+{
+    FILE* fp;
+    char disconnect_file[50];
+    sprintf(disconnect_file, ".%s-disconnect", username);
+    fp = fopen(disconnect_file, "r");
+    if (fp != NULL) {
+        DEBUG_PRINT(("file di disconnessione pendente trovato: %s", disconnect_file));
+        time_t disconnect_ts;
+        if (fscanf(fp, "%ld", &disconnect_ts) == 1) {
+            char user_ts[64];
+            sprintf(user_ts, "%s %ld", "pippo", disconnect_ts);
+            int sd = net_initTCP(Device.srv_port);
+            if (sd != -1) {
+                net_sendTCP(sd, "LGOUT", user_ts);
+                DEBUG_PRINT(("server aggiornato su l'ultima disconnessione. Eliminazione del file: %s ...", disconnect_file));
+                if (remove(disconnect_file)) {
+                    DEBUG_PRINT(("impossibile eliminare il file %s", disconnect_file));
+                }
+                close(sd);
+                FD_CLR(sd, &iom.master);
+            } else {
+                DEBUG_PRINT(("impossibile aggiornare il server su l'ultima disconnessione. Nuovo tentativo al prossimo avvio dell'applicazione"));
+            }
+        }
+    }
+}
+
 void Device_esc()
 {
-    int sd = net_initTCP(Device.srv_port);
-    net_sendTCP(sd, "LGOUT", Device.username);
-    close(sd);
-    FD_CLR(sd, &iom.master);
+    if (Device.is_logged_in) {
+        int sd = net_initTCP(Device.srv_port);
+        if (sd != -1) {
+            char user_ts[64];
+            sprintf(user_ts, "%s %d", Device.username, 0);
+            net_sendTCP(sd, "LGOUT", user_ts);
+            close(sd);
+            FD_CLR(sd, &iom.master);
+        } else { 
+            // se non è possibile avvisare il server della disconnessione
+            // salvare l'istante di disconnessione e comunicarlo alla prossima riconenssione
+            FILE* fp;
+            char disconnect_file[50];
+            sprintf(disconnect_file, ".%s-disconnect", Device.username);
+            fp = fopen(disconnect_file, "w");
+            if (fp == NULL) {
+                DEBUG_PRINT(("impossibile aprire file %s", disconnect_file));
+            } else {
+                fprintf(fp, "%ld", getTimestamp());
+                DEBUG_PRINT(("timestamp di disconnessione pendente salvato in %s", disconnect_file));
+            }
+        }
+    }
     printf("Arrivederci\n");
     exit(0);
 }
@@ -66,6 +113,7 @@ void Device_in(int srv_port, char* username, char* password)
     int sd = net_initTCP(srv_port);
     if (sd != -1) {
         sprintf(credentials, "%s %s %d", username, password, Device.port);
+        Device_updateCachedLogout(username);
         net_sendTCP(sd, "LOGIN", credentials);
         DEBUG_PRINT(("inviata richiesta di login, ora in attesa"));
         net_receiveTCP(sd, cmd, &tmp);
