@@ -178,6 +178,18 @@ void Server_handleTCP(int sd)
             net_sendTCP(sd, "ERROR", "");
             DEBUG_PRINT(("rifiutata richiesta di signup non valida"));
         }
+    } else if (!strcmp("LGOUT", cmd)) {
+        if (tmp != NULL && sscanf(tmp, "%s", username) == 1) {
+            for (UserEntry* elem = Server.user_register_head; elem != NULL; elem = elem->next) {
+                if (!strcmp(elem->user_dest, username)) {
+                    elem->timestamp_logout = getTimestamp();
+                    DEBUG_PRINT(("utente %s disconnesso", username));
+                    break;
+                }
+            }
+        } else {
+            DEBUG_PRINT(("richiesta di disconnessione anonima. Nessun effetto"));
+        }
     } else {
         DEBUG_PRINT(("ricevuto comando remoto non valido: %s", cmd));
     }

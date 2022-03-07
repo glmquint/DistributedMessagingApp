@@ -22,9 +22,11 @@
 
 struct Device_s {
     bool is_logged_in;
+    char username[32];
     int port;
+    int srv_port;
     Cmd available_cmds[CMDLIST_LEN];
-} Device = {false, -1, {
+} Device = {false, "", -1, 4242, {
     {"signup", {"username", "password"}, 2, "crea un account sul server", false, false},
     {"in", {"srv_port", "username", "password"}, 3, "richiede al server la connessione al servizio", false, false},
     {"hanging", {""}, 0, "riceve la lista degli utenti che hanno inviato messaggi mentre si era offline", true, false},
@@ -47,6 +49,10 @@ void Device_init(int argv, char *argc[])
 
 void Device_esc()
 {
+    int sd = net_initTCP(Device.srv_port);
+    net_sendTCP(sd, "LGOUT", Device.username);
+    close(sd);
+    FD_CLR(sd, &iom.master);
     printf("Arrivederci\n");
     exit(0);
 }
@@ -66,6 +72,7 @@ void Device_in(int srv_port, char* username, char* password)
         if (!strcmp("OK-OK", cmd)) {
             SCREEN_PRINT(("login avvenuta con successo!"));
             Device.is_logged_in = true;
+            sscanf(username, "%s", Device.username);
         } else if (!strcmp("UKNWN", cmd)) {
             SCREEN_PRINT(("login rifiutata: utente sconosciuto"));
         } else {
@@ -84,8 +91,8 @@ void Device_signup(char* username, char* password)
 {
     char *tmp, cmd[6];
     char credentials[70];
-    int sd = net_initTCP(4242); // presupponiamo che il server si trovi a questa porta!!
-    sprintf(credentials, "%s %s", username, password);
+    int sd = net_initTCP(Device.srv_port); // presupponiamo che il server si trovi a questa porta!!
+    sprintf(credentials, "%s %s %d", username, password, Device.port);
     net_sendTCP(sd, "SIGUP", credentials);
     DEBUG_PRINT(("inviata richiesta di signup, ora in attesa"));
     net_receiveTCP(sd, cmd, &tmp);
@@ -94,6 +101,7 @@ void Device_signup(char* username, char* password)
         if (!strcmp("OK-OK", cmd)) {
             SCREEN_PRINT(("signup avvenuta con successo!"));
             Device.is_logged_in = true;
+            sscanf(username, "%s", Device.username);
         } else if (!strcmp("KNOWN", cmd)) {
             SCREEN_PRINT(("signup rifiutata: utente già registrato. (Usare il comando 'in' per collegarsi)"));
         } else {

@@ -11,5 +11,7 @@ Digita un comando:
 >> [DEBUG]: ricevuta richiesta di signup da parte di ( new-user : new-pass )
 [DEBUG]: credenziali caricate: new-user new-pass
 [DEBUG]: richiesta di signup accettata
+[DEBUG]: utente new-user disconnesso
 [DEBUG]: ricevuta richiesta di login da parte di ( new-user : new-pass )
 [DEBUG]: richiesta di login accettata
+[DEBUG]: utente new-user disconnesso
