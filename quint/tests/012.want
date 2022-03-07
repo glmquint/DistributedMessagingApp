@@ -7,3 +7,10 @@ Digita un comando:
 >>     esc --> chiude l'applicazione
 >> [DEBUG]: richiesta di login sul server localhost:999 con credenziali ( pippo : P!pp0 )
 Errore in fase di connessione: Connection refused
+        
+Digita un comando:
+
+>>     signup <username> <password> --> crea un account sul server
+>>     in <srv_port> <username> <password> --> richiede al server la connessione al servizio
+>>     esc --> chiude l'applicazione
+>> Arrivederci

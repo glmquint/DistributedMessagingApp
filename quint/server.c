@@ -75,10 +75,10 @@ void Server_init(int argv, char *argc[])
                 DEBUG_PRINT(("credenziali caricate: %s %s", this_user->user_dest, this_user->password));
             }
         }
-    }
     fclose(fp);
     if (line)
         free(line);
+    }
 }
 
 void Server_esc()

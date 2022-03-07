@@ -64,28 +64,30 @@ void Device_in(int srv_port, char* username, char* password)
     char credentials[70];
     DEBUG_PRINT(("richiesta di login sul server localhost:%d con credenziali ( %s : %s )", srv_port, username, password));
     int sd = net_initTCP(srv_port);
-    sprintf(credentials, "%s %s %d", username, password, Device.port);
-    net_sendTCP(sd, "LOGIN", credentials);
-    DEBUG_PRINT(("inviata richiesta di login, ora in attesa"));
-    net_receiveTCP(sd, cmd, &tmp);
-    DEBUG_PRINT(("ricevuta risposta dal server"));
-    if (strlen(cmd) != 0) {
-        if (!strcmp("OK-OK", cmd)) {
-            SCREEN_PRINT(("login avvenuta con successo!"));
-            Device.is_logged_in = true;
-            sscanf(username, "%s", Device.username);
-        } else if (!strcmp("UKNWN", cmd)) {
-            SCREEN_PRINT(("login rifiutata: utente sconosciuto"));
+    if (sd != -1) {
+        sprintf(credentials, "%s %s %d", username, password, Device.port);
+        net_sendTCP(sd, "LOGIN", credentials);
+        DEBUG_PRINT(("inviata richiesta di login, ora in attesa"));
+        net_receiveTCP(sd, cmd, &tmp);
+        DEBUG_PRINT(("ricevuta risposta dal server"));
+        if (strlen(cmd) != 0) {
+            if (!strcmp("OK-OK", cmd)) {
+                SCREEN_PRINT(("login avvenuta con successo!"));
+                Device.is_logged_in = true;
+                sscanf(username, "%s", Device.username);
+            } else if (!strcmp("UKNWN", cmd)) {
+                SCREEN_PRINT(("login rifiutata: utente sconosciuto"));
+            } else {
+                SCREEN_PRINT(("errore durante la login"));
+            }
         } else {
-            SCREEN_PRINT(("errore durante la login"));
+            DEBUG_PRINT(("risposta vuota da parte del server durante la login"));
         }
-    } else {
-        DEBUG_PRINT(("risposta vuota da parte del server durante la login"));
+        if (tmp)
+            free(tmp);
+        close(sd);
+        FD_CLR(sd, &iom.master);
     }
-    if (tmp)
-        free(tmp);
-    close(sd);
-    FD_CLR(sd, &iom.master);
 }
 
 void Device_signup(char* username, char* password)
@@ -93,28 +95,30 @@ void Device_signup(char* username, char* password)
     char *tmp, cmd[6];
     char credentials[70];
     int sd = net_initTCP(Device.srv_port); // presupponiamo che il server si trovi a questa porta!!
-    sprintf(credentials, "%s %s %d", username, password, Device.port);
-    net_sendTCP(sd, "SIGUP", credentials);
-    DEBUG_PRINT(("inviata richiesta di signup, ora in attesa"));
-    net_receiveTCP(sd, cmd, &tmp);
-    DEBUG_PRINT(("ricevuta risposta dal server"));
-    if (strlen(cmd) != 0) {
-        if (!strcmp("OK-OK", cmd)) {
-            SCREEN_PRINT(("signup avvenuta con successo!"));
-            Device.is_logged_in = true;
-            sscanf(username, "%s", Device.username);
-        } else if (!strcmp("KNOWN", cmd)) {
-            SCREEN_PRINT(("signup rifiutata: utente già registrato. (Usare il comando 'in' per collegarsi)"));
+    if (sd != -1) {
+        sprintf(credentials, "%s %s %d", username, password, Device.port);
+        net_sendTCP(sd, "SIGUP", credentials);
+        DEBUG_PRINT(("inviata richiesta di signup, ora in attesa"));
+        net_receiveTCP(sd, cmd, &tmp);
+        DEBUG_PRINT(("ricevuta risposta dal server"));
+        if (strlen(cmd) != 0) {
+            if (!strcmp("OK-OK", cmd)) {
+                SCREEN_PRINT(("signup avvenuta con successo!"));
+                Device.is_logged_in = true;
+                sscanf(username, "%s", Device.username);
+            } else if (!strcmp("KNOWN", cmd)) {
+                SCREEN_PRINT(("signup rifiutata: utente già registrato. (Usare il comando 'in' per collegarsi)"));
+            } else {
+                SCREEN_PRINT(("errore durante la signup"));
+            }
         } else {
-            SCREEN_PRINT(("errore durante la signup"));
+            DEBUG_PRINT(("risposta vuota da parte del server durante la signup"));
         }
-    } else {
-        DEBUG_PRINT(("risposta vuota da parte del server durante la signup"));
+        if (tmp)
+            free(tmp);
+        close(sd);
+        FD_CLR(sd, &iom.master);
     }
-    if (tmp)
-        free(tmp);
-    close(sd);
-    FD_CLR(sd, &iom.master);
 }
 
 void Device_hanging()
