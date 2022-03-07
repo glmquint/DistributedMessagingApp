@@ -1,0 +1,10 @@
+echo -n "1646665908" > .pippo-disconnect
+pkill serv
+./serv 2>&1 1>/dev/null &
+./dev 5001 2>&1 << END
+in 4242 pippo P!pp0
+out
+in 4242 pippo P!pp0
+esc
+END
+pkill serv

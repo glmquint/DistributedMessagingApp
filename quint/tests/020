@@ -1,0 +1,11 @@
+pkill serv
+./serv 1>/dev/null & << EOF
+$(sleep 1)
+esc
+EOF
+./dev 5001 << END
+in 4242 pippo P!pp0
+out
+in 4242 pluto P(u70
+esc
+END

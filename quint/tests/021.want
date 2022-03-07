@@ -1,0 +1,24 @@
+021
+        
+Digita un comando:
+
+>>     signup <username> <password> --> crea un account sul server
+>>     in <srv_port> <username> <password> --> richiede al server la connessione al servizio
+>>     esc --> chiude l'applicazione
+>> [DEBUG]: richiesta di login sul server localhost:4242 con credenziali ( pippo : P!pp0 )
+[DEBUG]: file di disconnessione pendente trovato: .pippo-disconnect
+[DEBUG]: server aggiornato su l'ultima disconnessione. Eliminazione del file: .pippo-disconnect ...
+[DEBUG]: inviata richiesta di login, ora in attesa
+[DEBUG]: ricevuta risposta dal server
+login avvenuta con successo!
+>>         
+Digita un comando:
+
+>>     hanging --> riceve la lista degli utenti che hanno inviato messaggi mentre si era offline
+>>     show <username> --> riceve dal server i messaggi pendenti inviati da <username> mentre si era offline
+>>     chat <username> --> avvia una chat con l'utente <username>
+>>     share <file_name> --> invia il file <file_name> (nella current directory) al device su cui è connesso l'utente o gli utenti con cui si sta chattando
+>>     out --> richiede la disconnessione dal network
+>>     esc --> chiude l'applicazione
+>> [DEBUG]: disconnessione avvennuta con successo
+Arrivederci
