@@ -1,0 +1,5 @@
+pkill serv
+./serv 2>&1 << EOF
+list
+esc
+EOF
