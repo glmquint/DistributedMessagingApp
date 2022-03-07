@@ -5,6 +5,8 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include <stdbool.h>
+#include <sys/time.h>
+#include <time.h>
 #include "util/IOMultiplex.h"
 #include "util/cmd.h"
 #include "util/network.h"
@@ -88,6 +90,19 @@ void Server_esc()
 
 void Server_list()
 {
+    int total_users = 0;
+    int logged_in_users = 0;
+    for (UserEntry* elem = Server.user_register_head; elem != NULL; elem = elem->next) {
+        total_users++;
+        if (elem->timestamp_login > elem->timestamp_logout) {
+            logged_in_users++;
+            char* datetime = ctime(&elem->timestamp_login);
+            datetime[strcspn(datetime, "\r\n")] = '\0';
+            SCREEN_PRINT(("%s*%s*%d", elem->user_dest, datetime, elem->port));
+            //SCREEN_PRINT(("%s*%ld*%d", elem->user_dest, elem->timestamp_login, elem->port));
+        }
+    }
+    SCREEN_PRINT(("%d utenti connessi su %d totali", logged_in_users, total_users));
 }
 
 void Server_handleSTDIN(char* buffer)
@@ -110,17 +125,27 @@ void Server_handleUDP(int sd)
 {
 }
 
-bool Server_checkCredentials(char* username, char* password)
+time_t getTimestamp() 
+{
+    struct timeval tv;
+    gettimeofday(&tv, NULL);
+    return tv.tv_sec;
+}
+
+bool Server_checkCredentials(char* username, char* password, int dev_port)
 {
     for (UserEntry* elem = Server.user_register_head; elem!=NULL; elem = elem->next) {
-        if (!strcmp(username, elem->user_dest) && !strcmp(password, elem->password))
+        if (!strcmp(username, elem->user_dest) && !strcmp(password, elem->password)) {
+            elem->timestamp_login = getTimestamp();
+            elem->port = dev_port;
             return true;
+        }
     }
     return false;
     // return !strcmp(username, "pippo") && !strcmp(password, "P!pp0");
 }
 
-bool Server_signupCredentials(char* username, char* password)
+bool Server_signupCredentials(char* username, char* password, int dev_port)
 {
     for (UserEntry* elem = Server.user_register_head; elem!=NULL; elem = elem->next) {
         if (!strcmp(username, elem->user_dest))
@@ -128,6 +153,8 @@ bool Server_signupCredentials(char* username, char* password)
     }
     UserEntry* this_user = malloc(sizeof(UserEntry));
     this_user->next = NULL;
+    this_user->timestamp_login = getTimestamp();
+    this_user->port = dev_port;
     sscanf(username, "%s", this_user->user_dest);
     sscanf(password, "%s", this_user->password);
     if (Server.user_register_head == NULL) {
@@ -147,13 +174,14 @@ void Server_handleTCP(int sd)
 {
     char *tmp, cmd[6];
     char username[32], password[32];
+    int dev_port;
     // DEBUG_PRINT(("ricevuto messaggio TCP su socket: %d", sd));
     net_receiveTCP(sd, cmd, &tmp);
     if (!strcmp("LOGIN", cmd)) {
         //DEBUG_PRINT(("corpo di signin: %s", tmp));
-        if (sscanf(tmp, "%s %s", username, password) == 2){
+        if (sscanf(tmp, "%s %s %d", username, password, &dev_port) == 3){
             DEBUG_PRINT(("ricevuta richiesta di login da parte di ( %s : %s )", username, password));
-            if (Server_checkCredentials(username, password)) {
+            if (Server_checkCredentials(username, password, dev_port)) {
                 net_sendTCP(sd, "OK-OK", "");
                 DEBUG_PRINT(("richiesta di login accettata"));
             } else {
@@ -165,9 +193,9 @@ void Server_handleTCP(int sd)
             DEBUG_PRINT(("rifiutata richiesta di login non valida"));
         }
     } else if (!strcmp("SIGUP", cmd)) {
-        if (sscanf(tmp, "%s %s", username, password) == 2){
+        if (sscanf(tmp, "%s %s %d", username, password, &dev_port) == 3){
             DEBUG_PRINT(("ricevuta richiesta di signup da parte di ( %s : %s )", username, password));
-            if (Server_signupCredentials(username, password)) {
+            if (Server_signupCredentials(username, password, dev_port)) {
                 net_sendTCP(sd, "OK-OK", "");
                 DEBUG_PRINT(("richiesta di signup accettata"));
             } else {

@@ -63,7 +63,7 @@ void Device_in(int srv_port, char* username, char* password)
     char credentials[70];
     DEBUG_PRINT(("richiesta di login sul server localhost:%d con credenziali ( %s : %s )", srv_port, username, password));
     int sd = net_initTCP(srv_port);
-    sprintf(credentials, "%s %s", username, password);
+    sprintf(credentials, "%s %s %d", username, password, Device.port);
     net_sendTCP(sd, "LOGIN", credentials);
     DEBUG_PRINT(("inviata richiesta di login, ora in attesa"));
     net_receiveTCP(sd, cmd, &tmp);
