@@ -111,10 +111,11 @@ void Server_handleSTDIN(char* buffer)
     else if(!strcmp("help", tmp)) {
         Cmd_showMenu(Server.available_cmds, CMDLIST_LEN, true);
         return;
-    } else if(!strcmp("list", tmp))
+    } else if(!strcmp("list", tmp)) {
         Server_list();
-    else
+    } else {
         SCREEN_PRINT(("comando non valido: %s", tmp));
+    }
     Cmd_showMenu(Server.available_cmds, CMDLIST_LEN, true);
 }
 
