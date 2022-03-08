@@ -8,4 +8,5 @@ Digita un comando:
 >>     help --> mostra i dettagli dei comandi
 >>     list --> mostra un elenco degli utenti connessi
 >>     esc --> chiude il server
->> Arrivederci
+>> [DEBUG]: 3 utenti salvati in shadow
+Arrivederci
