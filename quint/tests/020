@@ -1,6 +1,6 @@
 pkill serv
 ./serv 1>/dev/null & << EOF
-$(sleep 1)
+$(sleep 0.1)
 esc
 EOF
 ./dev 5001 << END
