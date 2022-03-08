@@ -28,7 +28,8 @@ time.o: util/time.c
 
 # pulizia dei file della compilazione 
 clean: 
-	rm *.exe *.o dev serv
+	echo "pippo P!pp0 0 0\npluto P(u70 0 0\npaperino Pap3r!n0 0 0" > shadow
+	rm *.exe *.o dev serv .*-disconnect
 
 # sezione dedicata al testing del codice in fase di sviluppo
 
