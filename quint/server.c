@@ -90,7 +90,8 @@ void Server_saveUserEntry()
         return;
     }
     int count = 0;
-    for (UserEntry* elem = Server.user_register_head; elem != NULL; elem = elem->next) {
+    UserEntry* elem;
+    for (elem = Server.user_register_head; elem != NULL; elem = elem->next) {
         fprintf(fp, "%s %s %ld %ld\n", elem->user_dest, elem->password, elem->timestamp_login, elem->timestamp_logout);
         count++;
     }
@@ -108,7 +109,8 @@ void Server_list()
 {
     int total_users = 0;
     int logged_in_users = 0;
-    for (UserEntry* elem = Server.user_register_head; elem != NULL; elem = elem->next) {
+    UserEntry* elem;
+    for (elem = Server.user_register_head; elem != NULL; elem = elem->next) {
         total_users++;
         if (elem->timestamp_login > elem->timestamp_logout) {
             logged_in_users++;
@@ -142,7 +144,8 @@ void Server_handleUDP(int sd)
 
 bool Server_checkCredentials(char* username, char* password, int dev_port)
 {
-    for (UserEntry* elem = Server.user_register_head; elem!=NULL; elem = elem->next) {
+    UserEntry* elem;
+    for (elem = Server.user_register_head; elem!=NULL; elem = elem->next) {
         if (!strcmp(username, elem->user_dest) && !strcmp(password, elem->password)) {
             elem->timestamp_login = getTimestamp();
             elem->port = dev_port;
@@ -155,7 +158,8 @@ bool Server_checkCredentials(char* username, char* password, int dev_port)
 
 bool Server_signupCredentials(char* username, char* password, int dev_port)
 {
-    for (UserEntry* elem = Server.user_register_head; elem!=NULL; elem = elem->next) {
+    UserEntry* elem;
+    for ( elem = Server.user_register_head; elem!=NULL; elem = elem->next) {
         if (!strcmp(username, elem->user_dest))
             return false;
     }
@@ -217,7 +221,8 @@ void Server_handleTCP(int sd)
         }
     } else if (!strcmp("LGOUT", cmd)) {
         if (tmp != NULL && sscanf(tmp, "%s %ld", username, &logout_ts) == 2) {
-            for (UserEntry* elem = Server.user_register_head; elem != NULL; elem = elem->next) {
+            UserEntry* elem;
+            for (elem = Server.user_register_head; elem != NULL; elem = elem->next) {
                 if (!strcmp(elem->user_dest, username)) {
                     if (logout_ts == 0)
                         elem->timestamp_logout = getTimestamp();
