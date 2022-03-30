@@ -21,12 +21,21 @@
 
 #define SCREEN_PRINT(x) printf("\r"); printf x; printf("\n>> "); fflush(stdout);
 
+typedef struct UserContact_s UserContact;
+struct UserContact_s {
+    char username[32];
+    int port;
+    UserContact* next;
+};
+
 struct Device_s {
     bool is_logged_in;
     char username[32];
     int port;
     int srv_port;
     Cmd available_cmds[CMDLIST_LEN];
+    UserContact* contacts_head;
+    UserContact* contacts_tail;
 } Device = {false, "", -1, 4242, {
     {"signup", {"username", "password"}, 2, "crea un account sul server", false, false},
     {"in", {"srv_port", "username", "password"}, 3, "richiede al server la connessione al servizio", false, false},
@@ -36,7 +45,7 @@ struct Device_s {
     {"share", {"file_name"}, 1, "invia il file <file_name> (nella current directory) al device su cui è connesso l'utente o gli utenti con cui si sta chattando", true, false},
     {"out", {""}, 0, "richiede la disconnessione dal network", true, false},
     {"esc", {""}, 0, "chiude l'applicazione", false, true},
-}};
+},NULL, NULL};
 
 void Device_init(int argv, char *argc[])
 {
@@ -46,6 +55,46 @@ void Device_init(int argv, char *argc[])
     }
     Device.port = atoi(argc[1]);
     Device.is_logged_in = false;
+}
+
+void Device_loadContacts()
+{
+    FILE* fp;
+    char contacts_file[50];
+    char* line = NULL;
+    size_t len = 0;
+    ssize_t read;
+    char this_user[32];
+
+    sprintf(contacts_file, ".%s-contacts", Device.username);
+    fp = fopen(contacts_file, "r");
+    if (fp != NULL) {
+        DEBUG_PRINT(("file rubrica trovato: %s", contacts_file));
+        while ((read = getline(&line, &len, fp)) != -1) {
+            if (sscanf(line, "%s", this_user) != 1) {
+                DEBUG_PRINT(("errore nel parsing di un contatto nel file %s", contacts_file));
+            } else {
+                UserContact* this_contact = malloc(sizeof(UserContact));
+                sprintf(this_contact->username, "%s", this_user);
+                this_contact->port = -1;
+                this_contact->next = NULL;
+                if (Device.contacts_head == NULL) {
+                    Device.contacts_head = this_contact;
+                    Device.contacts_tail = this_contact;
+                } else {
+                    Device.contacts_tail->next = this_contact;
+                    Device.contacts_tail = this_contact;
+                }
+            }
+        }
+    }
+
+    /*
+    DEBUG_PRINT(("ribrica:"));
+    for (UserContact* elem = Device.contacts_head; elem != NULL; elem = elem->next) {
+        DEBUG_PRINT(("%s - %d", elem->username, elem->port));
+    }
+    */
 }
 
 void Device_updateCachedLogout(char* username)
@@ -132,6 +181,7 @@ void Device_in(int srv_port, char* username, char* password)
                 SCREEN_PRINT(("login avvenuta con successo!"));
                 Device.is_logged_in = true;
                 sscanf(username, "%s", Device.username);
+                Device_loadContacts();
             } else if (!strcmp("UKNWN", cmd)) {
                 SCREEN_PRINT(("login rifiutata: utente sconosciuto"));
             } else {
@@ -163,6 +213,7 @@ void Device_signup(char* username, char* password)
                 SCREEN_PRINT(("signup avvenuta con successo!"));
                 Device.is_logged_in = true;
                 sscanf(username, "%s", Device.username);
+                Device_loadContacts();
             } else if (!strcmp("KNOWN", cmd)) {
                 SCREEN_PRINT(("signup rifiutata: utente già registrato. (Usare il comando 'in' per collegarsi)"));
             } else {
