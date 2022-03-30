@@ -28,8 +28,11 @@ time.o: util/time.c
 
 # pulizia dei file della compilazione 
 clean: 
-	echo "pippo P!pp0 0 0\npluto P(u70 0 0\npaperino Pap3r!n0 0 0" > shadow
-	rm *.exe *.o dev serv .*-disconnect
+	-rm *.exe *.o dev serv .*-disconnect .*-contacts
+	echo "user1 pass 0 0\nuser2 pass 0 0\nuser3 pass  0 0" > shadow
+	echo -en "user2" > .user1-contacts
+	echo -en "user1\nuser3" > .user2-contacts
+	echo -en "user2" > .user3-contacts
 
 # sezione dedicata al testing del codice in fase di sviluppo
 
