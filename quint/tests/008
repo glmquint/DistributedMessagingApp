@@ -1,4 +1,4 @@
-pkill serv
+#pkill serv
 ./serv 1>/dev/null &
 ./dev 5001 << EOF
 in 4242 pippo P!pp0

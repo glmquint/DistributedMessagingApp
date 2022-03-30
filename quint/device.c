@@ -145,7 +145,7 @@ void Device_out()
         sprintf(disconnect_file, ".%s-disconnect", Device.username);
         fp = fopen(disconnect_file, "w");
         if (fp == NULL) {
-            DEBUG_PRINT(("impossibile aprire file %s", disconnect_file));
+            DEBUG_PRINT(("impossibile aprire file di disconnessione pendente %s", disconnect_file));
         } else {
             fprintf(fp, "%ld", getTimestamp());
             DEBUG_PRINT(("timestamp di disconnessione pendente salvato in %s", disconnect_file));
