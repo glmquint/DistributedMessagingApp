@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <unistd.h>
 #include <arpa/inet.h>
 #include <sys/types.h>
 #include <sys/socket.h>
@@ -92,4 +93,37 @@ void net_receiveTCP(int sd, char protocol[6], char** buffer)
         *buffer = (void*)0; // NULL
     }
     // DEBUG_PRINT(("  after buffer=%x", *buffer));
+}
+
+//FIXME: check and format
+void net_askHearthBeat(int port)
+{
+    int sockfd;
+    struct sockaddr_in servaddr;
+    char* heart_beat_msg = "HRTBT";
+
+    if ((sockfd = socket(AF_INET, SOCK_DGRAM, 0)) < 0) {
+        perror("socket creation failed");
+        exit(0);
+    }
+
+    memset(&servaddr, 0, sizeof(servaddr));
+
+    servaddr.sin_family = AF_INET;
+    servaddr.sin_port = htons(port);
+    servaddr.sin_addr.s_addr = inet_addr("127.0.0.1");
+
+    sendto(sockfd, (const char*)heart_beat_msg, REQ_LEN, 0, (const struct sockaddr*)&servaddr, sizeof(servaddr));
+
+    close(sockfd);
+}
+
+void net_answerHeartBeat(int sd)
+{
+    char buffer[REQ_LEN];
+    int n, len;
+    struct sockaddr_in servaddr;
+    n = recvfrom(sd, (char*)buffer, REQ_LEN, 0, (struct sockaddr*)&servaddr, &len);
+    DEBUG_PRINT(("ricevuto su UDP: %s", buffer));
+    close(sd);
 }

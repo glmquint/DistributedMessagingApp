@@ -300,7 +300,11 @@ void Device_chat(char* username)
 
 void Device_share(char* file_name)
 {
-    DEBUG_PRINT(("sharing %s", file_name));
+    if (!Device.is_chatting) {
+        SCREEN_PRINT(("prima di condividere un file è necessario entrare in una chat tramite il comando: chat <username>"));
+    } else {
+        DEBUG_PRINT(("sharing %s", file_name));
+    }
 }
 
 void Device_handleSTDIN(char* buffer)
@@ -315,13 +319,13 @@ void Device_handleSTDIN(char* buffer)
             if (sscanf(buffer, "%s %d %s %s", tmp, &srv_port, username, password) == 4) {
                 Device_in(srv_port, username, password);
             } else {
-                SCREEN_PRINT(("formato non valido per il comando %s %d %s %s", tmp, srv_port, username, password));
+                SCREEN_PRINT(("formato non valido per il comando %s %d %s %s (specificare porta, username e password)", tmp, srv_port, username, password));
             }
         } else if (!strcmp("signup", tmp) && !Device.is_logged_in) {
             if (sscanf(buffer, "%s %s %s", tmp, username, password) == 3) {
                 Device_signup(username, password);
             } else {
-                SCREEN_PRINT(("formato non valido per il comando %s %s %s", tmp, username, password));
+                SCREEN_PRINT(("formato non valido per il comando %s %s %s (specificare username e password)", tmp, username, password));
             }
         } else if (!strcmp("hanging", tmp) && Device.is_logged_in) {
             Device_hanging();
@@ -329,19 +333,19 @@ void Device_handleSTDIN(char* buffer)
             if (sscanf(buffer, "%s %s", tmp, username) == 2) {
                 Device_show(username);
             } else {
-                SCREEN_PRINT(("formato non valido per il comando %s %s", tmp, username));
+                SCREEN_PRINT(("formato non valido per il comando %s %s (specificare username)", tmp, username));
             }
         } else if (!strcmp("chat", tmp) && Device.is_logged_in) {
             if (sscanf(buffer, "%s %s", tmp, username) == 2) {
                 Device_chat(username);
             } else {
-                SCREEN_PRINT(("formato non valido per il comando %s %s", tmp, username));
+                SCREEN_PRINT(("formato non valido per il comando %s %s (specificare username)", tmp, username));
             }
         } else if (!strcmp("share", tmp) && Device.is_logged_in) {
             if (sscanf(buffer, "%s %s", tmp, file_name) == 2) {
                 Device_share(file_name);
             } else {
-                SCREEN_PRINT(("formato non valido per il comando %s %s", tmp, file_name));
+                SCREEN_PRINT(("formato non valido per il comando %s %s (specificare filename)", tmp, file_name));
             }
         } else if (!strcmp("out", tmp) && Device.is_logged_in) {
             Device_out();
@@ -362,10 +366,16 @@ void Device_handleSTDIN(char* buffer)
                 DEBUG_PRINT(("added %s to chat", username));
                 //TODO: check username validity and add as chat receiver
             } else {
-                SCREEN_PRINT(("formato non valido per il comando %s %s", tmp, username));
+                SCREEN_PRINT(("formato non valido per il comando %s %s (specificare username)", tmp, username));
+            }
+        } else if (!strcmp("share", tmp) && Device.is_logged_in) {
+            if (sscanf(buffer, "%s %s", tmp, file_name) == 2) {
+                Device_share(file_name);
+            } else {
+                SCREEN_PRINT(("formato non valido per il comando %s %s (speicificare filename)", tmp, file_name));
             }
         } else {
-            SCREEN_PRINT(("invio messaggio: %s", tmp));
+            SCREEN_PRINT(("invio messaggio: %s", buffer));
         }
     }
     SCREEN_PRINT(("                                      ")); // clean line necessary with '\r'
@@ -387,7 +397,7 @@ int main(int argv, char *argc[])
     
     Device_init(argv, argc);
     Cmd_showMenu(Device.available_cmds, CMDLIST_LEN, false);
-    IOMultiplex(Device.port, false, Device_handleSTDIN, Device_handleUDP, Device_handleTCP);
+    IOMultiplex(Device.port, true, Device_handleSTDIN, Device_handleUDP, Device_handleTCP);
 
     return 1;
 }

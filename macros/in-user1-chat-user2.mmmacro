@@ -1,4 +1,5 @@
-﻿1 | 357 | 312 | 1000 | Keypress ./dev 5001
+﻿0 | 263 | 171 | 1000 | Keypress Enter
+1 | 357 | 312 | 1000 | Keypress ./dev 5001
 2 | 263 | 171 | 1000 | Keypress Enter
 3 | 288 | 319 | 1000 | Keypress in 4242 user1 pass
 2 | 263 | 171 | 1000 | Keypress Enter

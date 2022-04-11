@@ -6,7 +6,6 @@ struct sIOMultiplexer
     int fdmax;
 } iom;
 
-//funzione che gestice l'IO del Ds ovvero si occupa di gestire le varie comunicazioni tra i suoi peer e l'input per mezzo della funzione select
 void IOMultiplex(int port, 
                 // struct sIOMultiplexer* iom, 
                 bool use_udp, 

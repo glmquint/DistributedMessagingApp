@@ -50,6 +50,10 @@ void Server_init(int argv, char *argc[])
 {
     if (argv > 1)
         Server.port = atoi(argc[1]);
+}
+
+void Server_loadUserEntry()
+{
     FILE* fp;
     char* line = NULL;
     size_t len = 0;
@@ -96,6 +100,7 @@ void Server_saveUserEntry()
         count++;
     }
     DEBUG_PRINT(("%d utenti salvati in %s", count, Server.shadow_file));
+    fclose(fp);
 }
 
 void Server_esc()
@@ -110,6 +115,7 @@ void Server_list()
     int total_users = 0;
     int logged_in_users = 0;
     UserEntry* elem;
+    Server_loadUserEntry();
     for (elem = Server.user_register_head; elem != NULL; elem = elem->next) {
         total_users++;
         if (elem->timestamp_login > elem->timestamp_logout) {
@@ -140,15 +146,18 @@ void Server_handleSTDIN(char* buffer)
 
 void Server_handleUDP(int sd)
 {
+    
 }
 
 bool Server_checkCredentials(char* username, char* password, int dev_port)
 {
     UserEntry* elem;
+    Server_loadUserEntry();
     for (elem = Server.user_register_head; elem!=NULL; elem = elem->next) {
         if (!strcmp(username, elem->user_dest) && !strcmp(password, elem->password)) {
             elem->timestamp_login = getTimestamp();
             elem->port = dev_port;
+            Server_saveUserEntry();
             return true;
         }
     }
@@ -159,6 +168,7 @@ bool Server_checkCredentials(char* username, char* password, int dev_port)
 bool Server_signupCredentials(char* username, char* password, int dev_port)
 {
     UserEntry* elem;
+    Server_loadUserEntry();
     for ( elem = Server.user_register_head; elem!=NULL; elem = elem->next) {
         if (!strcmp(username, elem->user_dest))
             return false;
@@ -177,6 +187,7 @@ bool Server_signupCredentials(char* username, char* password, int dev_port)
         Server.user_register_tail = this_user;
     }
     DEBUG_PRINT(("credenziali caricate: %s %s", this_user->user_dest, this_user->password));
+    Server_saveUserEntry();
     return true;
 
     // return strcmp(username, "pippo"); // && strcmp(password, "P!pp0");

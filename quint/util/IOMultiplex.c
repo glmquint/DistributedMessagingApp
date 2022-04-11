@@ -27,23 +27,22 @@ struct sIOMultiplexer
 {
     fd_set master;
     fd_set read_fds;
-    fd_set write_fds;
+    // fd_set write_fds;
     int fdmax;
 } iom;
 
-//funzione che gestice l'IO del Ds ovvero si occupa di gestire le varie comunicazioni tra i suoi peer e l'input per mezzo della funzione select
 void IOMultiplex(int port, 
-                // struct sIOMultiplexer* iom, 
                 bool use_udp, 
                 void (*handleSTDIN)(char* buffer),
                 void (*handleUDP)(int sd),
-                //void (*handleTCP)(char* cmd, int sd))
                 void (*handleTCP)(int sd))
 {
-    int ret, newfd, listener, i, boot;
+    int ret, newfd, listener, i, udp_listener;
     socklen_t addrlen;
     struct sockaddr_in my_addr, cl_addr;
     char buffer[1024];
+    pid_t pid;
+    struct timeval tv;
 
     listener = socket(AF_INET, SOCK_STREAM, 0);
 
@@ -63,57 +62,72 @@ void IOMultiplex(int port,
 
     FD_ZERO(&(iom.master));
     FD_ZERO(&(iom.read_fds));
-    FD_ZERO(&(iom.write_fds));
+    // FD_ZERO(&(iom.write_fds));
 
     FD_SET(STDIN, &(iom.master));
     FD_SET(listener, &(iom.master));
 
     if (use_udp) {
-        boot = socket(AF_INET, SOCK_DGRAM, 0);
-        ret = bind(boot, (struct sockaddr *)&my_addr, sizeof(my_addr));
+        udp_listener = socket(AF_INET, SOCK_DGRAM, 0);
+        ret = bind(udp_listener, (struct sockaddr *)&my_addr, sizeof(my_addr));
         if (ret < 0) {
             perror("Bind UDP non riuscita\n");
             exit(0);
         }
-        FD_SET(boot, &(iom.master));
+        FD_SET(udp_listener, &(iom.master));
     } else
-        boot = -1;
+        udp_listener = -1;
 
-    iom.fdmax = (listener > boot) ? listener : boot;
+    iom.fdmax = (listener > udp_listener) ? listener : udp_listener;
 
     while (1) {
         iom.read_fds = iom.master;
-        i = select(iom.fdmax + 1, &(iom.read_fds), NULL, NULL, NULL);
+        tv.tv_sec = 20; // 20 seconds wait
+        tv.tv_usec = 0;
+        i = select(iom.fdmax + 1, &(iom.read_fds), NULL, NULL, &tv);
         if (i < 0) {
             perror("select: ");
             exit(1);
         }
+        if (i > 0) {
 
-        for (i = 0; i <= iom.fdmax; i++) {
-            if (FD_ISSET(i, &(iom.read_fds))) {
-                DEBUG_PRINT(("%d is set\n", i));
-                if (i == listener) {
-                    addrlen = sizeof(cl_addr);
-                    newfd = accept(listener, (struct sockaddr *)&cl_addr, &addrlen);
-                    FD_SET(newfd, & iom.master);
-                    if (newfd > iom.fdmax)
-                        iom.fdmax = newfd;
-                }
-                else if (i == STDIN) {
-                    if (fgets(buffer, sizeof buffer, stdin))
-                        handleSTDIN(buffer);
-                }
-                else if (i == boot) {
-                    handleUDP(i);
-                }
-                else {
-                    handleTCP(i);
-                    /*if (fork() == 0)
-                    else
+            for (i = 0; i <= iom.fdmax; i++) {
+                if (FD_ISSET(i, &(iom.read_fds))) {
+                    DEBUG_PRINT(("%d is set\n", i));
+                    if (i == listener) { // 
+                        addrlen = sizeof(cl_addr);
+                        newfd = accept(listener, (struct sockaddr *)&cl_addr, &addrlen);
+                        FD_SET(newfd, & iom.master);
+                        if (newfd > iom.fdmax)
+                            iom.fdmax = newfd;
+                    }
+                    else if (i == STDIN) { // input da tastiera
+                        if (fgets(buffer, sizeof buffer, stdin))
+                            handleSTDIN(buffer);
+                    }
+                    else if (i == udp_listener) { // messaggio UDP
+                        handleUDP(i);
+                    }
+                    else { // messaggio TCP
+                        // handleTCP(i);
+                        pid = fork();
+                        if (pid == -1) {
+                            perror("Errore durante la fork: ");
+                            return;
+                        }
+                        if (pid == 0) { // figlio
+                            close(listener);
+                            handleTCP(i);
+                            exit(0);
+                        }
                         close(i);
-                    */
+                        FD_CLR(i, &(iom.master));
+                    }
                 }
             }
+        } else { // select == 0
+            printf("."); // TODO: sanity checks
+            fflush(stdout);
         }
     }
 
