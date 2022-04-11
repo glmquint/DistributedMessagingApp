@@ -108,6 +108,10 @@ void IOMultiplex(int port,
                 }
                 else {
                     handleTCP(i);
+                    /*if (fork() == 0)
+                    else
+                        close(i);
+                    */
                 }
             }
         }

@@ -9,34 +9,68 @@
 #include "util/time.h"
 
 #define STDIN_BUF_LEN 128
-#define CMDLIST_LEN 8
+#define CMDLIST_LEN 9
+#define USERNAME_LEN 32
 
 #define DEBUG_ON
 
+
+// funzioni di utility per mostrare a schermo informazioni di debug
 #ifdef DEBUG_ON
-# define DEBUG_PRINT(x) printf("[DEBUG]: "); printf x; printf("\n"); fflush(stdout)
+# define DEBUG_PRINT(x) printf("\r[DEBUG]: "); printf x; printf("\n"); fflush(stdout) // è necessario un flush dello stream in quanto SCREEN_PRINT usa '\r'
 #else
 # define DEBUG_PRINT(x) do {} while (0)
 #endif
 
-#define SCREEN_PRINT(x) printf("\r"); printf x; printf("\n>> "); fflush(stdout);
 
+typedef struct Username_s Username;
+struct Username_s {
+    char username[USERNAME_LEN];
+    Username* next;
+};
+
+typedef struct Msg_s Msg;
+struct Msg_s {
+    char sender[USERNAME_LEN];
+    Username* receivers;
+    time_t send_ts;
+    time_t read_ts;
+    Msg* next;
+};
+
+// TODO: refactor to util file
 typedef struct UserContact_s UserContact;
 struct UserContact_s {
-    char username[32];
+    char username[USERNAME_LEN];
     int port;
+    bool is_in_chat;
+    Msg* chat_head; // lista dei messaggi
+    Msg* chat_tail;
     UserContact* next;
 };
 
+UserContact* new_UserContact() {
+    UserContact* contact = malloc(sizeof(UserContact));
+    memset(contact->username, '\0', USERNAME_LEN);
+    strcpy(contact->username, "UNKNWOWN");
+    contact->port = -1;
+    contact->chat_head = NULL;
+    contact->chat_tail = NULL;
+    contact->next = NULL;
+    return contact;
+}
+
 struct Device_s {
     bool is_logged_in;
-    char username[32];
+    bool is_chatting;
+    char username[USERNAME_LEN];
     int port;
     int srv_port;
-    Cmd available_cmds[CMDLIST_LEN];
-    UserContact* contacts_head;
+    Cmd available_cmds[CMDLIST_LEN]; // lista dei comandi invacabili dal menu
+    UserContact* contacts_head; // lista dei contatti nella rubrica dell'utente loggato
     UserContact* contacts_tail;
-} Device = {false, "", -1, 4242, {
+} Device = {false, false, "", -1, 4242, { // singleton per ogni device
+    {"help", {""}, 0, "mostra i dettagli dei comandi",  false, true},
     {"signup", {"username", "password"}, 2, "crea un account sul server", false, false},
     {"in", {"srv_port", "username", "password"}, 3, "richiede al server la connessione al servizio", false, false},
     {"hanging", {""}, 0, "riceve la lista degli utenti che hanno inviato messaggi mentre si era offline", true, false},
@@ -47,10 +81,20 @@ struct Device_s {
     {"esc", {""}, 0, "chiude l'applicazione", false, true},
 },NULL, NULL};
 
+void prompt()
+{
+    if (Device.is_chatting)
+        printf("\nChatting with [user1, user2]: ");
+        //TODO: actually show current chat receivers
+    else
+        printf("\n>> ");
+}
+#define SCREEN_PRINT(x) printf("\r"); printf x; prompt(); fflush(stdout);
+
 void Device_init(int argv, char *argc[])
 {
     if (argv < 2) {
-        printf("Utilizzo: %s <porta>", argc[0]);
+        printf("Utilizzo: %s <porta>", argc[0]); // è necessario specificare la porta in uso dal device
         exit(0);
     }
     Device.port = atoi(argc[1]);
@@ -59,12 +103,12 @@ void Device_init(int argv, char *argc[])
 
 void Device_loadContacts()
 {
-    FILE* fp;
-    char contacts_file[50];
+    FILE* fp; // file descriptor della rubrica dell'utente (se presente nel current path) nella forma ".<username>-contacts"
+    char contacts_file[USERNAME_LEN + 11]; // filename della rubrica (len(username) + len(".-contacts") + len('\0'))
     char* line = NULL;
     size_t len = 0;
     ssize_t read;
-    char this_user[32];
+    char this_user[USERNAME_LEN];
 
     sprintf(contacts_file, ".%s-contacts", Device.username);
     fp = fopen(contacts_file, "r");
@@ -74,10 +118,8 @@ void Device_loadContacts()
             if (sscanf(line, "%s", this_user) != 1) {
                 DEBUG_PRINT(("errore nel parsing di un contatto nel file %s", contacts_file));
             } else {
-                UserContact* this_contact = malloc(sizeof(UserContact));
+                UserContact* this_contact = new_UserContact();
                 sprintf(this_contact->username, "%s", this_user);
-                this_contact->port = -1;
-                this_contact->next = NULL;
                 if (Device.contacts_head == NULL) {
                     Device.contacts_head = this_contact;
                     Device.contacts_tail = this_contact;
@@ -97,6 +139,14 @@ void Device_loadContacts()
     */
 }
 
+// se nel current path è presente un file di disconnessione per questo utente (nel formato ".<username>-disconnect")
+// significa che l'ultimo evento di disconnessione non è stato comunicato al server.
+// Questa informazione deve essere notificata ad ogni successivo tentativo di login, 
+// finché non sarà possibile rimuovere il file in sicurezza
+//
+// [Al successivo login dell'utente, si tenta di cumunicare in ritardo questa informazione al server,
+// finché questo non lo riceverà e verrà automaticamente eliminato il file di disconnessione]
+// FIXME: better comments ffs
 void Device_updateCachedLogout(char* username)
 {
     FILE* fp;
@@ -107,10 +157,11 @@ void Device_updateCachedLogout(char* username)
         DEBUG_PRINT(("file di disconnessione pendente trovato: %s", disconnect_file));
         time_t disconnect_ts;
         if (fscanf(fp, "%ld", &disconnect_ts) == 1) {
-            char user_ts[64];
+            char user_ts[64]; // 64 = len(USERNAME_LEN) + margine per un long int in decimale
             sprintf(user_ts, "%s %ld", "pippo", disconnect_ts);
             int sd = net_initTCP(Device.srv_port);
             if (sd != -1) {
+                // TODO: try refactoring with Device_out()
                 net_sendTCP(sd, "LGOUT", user_ts);
                 DEBUG_PRINT(("server aggiornato su l'ultima disconnessione. Eliminazione del file: %s ...", disconnect_file));
                 if (remove(disconnect_file)) {
@@ -171,7 +222,7 @@ void Device_in(int srv_port, char* username, char* password)
     int sd = net_initTCP(srv_port);
     if (sd != -1) {
         sprintf(credentials, "%s %s %d", username, password, Device.port);
-        Device_updateCachedLogout(username);
+        Device_updateCachedLogout(username); // se è presente un logout non notificato, inviarlo al server durante la nuova connessione
         net_sendTCP(sd, "LOGIN", credentials);
         DEBUG_PRINT(("inviata richiesta di login, ora in attesa"));
         net_receiveTCP(sd, cmd, &tmp);
@@ -231,66 +282,93 @@ void Device_signup(char* username, char* password)
 
 void Device_hanging()
 {
+    //TODO
+    DEBUG_PRINT(("showing users with pending messages: ..."));
 }
 
 void Device_show(char* username)
 {
+    //TODO
+    DEBUG_PRINT(("showing pending messages from %s", username));
 }
 
 void Device_chat(char* username)
 {
+    Device.is_chatting = true;
+    DEBUG_PRINT(("chatting with %s", username));
 }
 
 void Device_share(char* file_name)
 {
+    DEBUG_PRINT(("sharing %s", file_name));
 }
 
 void Device_handleSTDIN(char* buffer)
 {
-    char tmp[20], username[32], password[32], file_name[64];
+    char tmp[20], username[USERNAME_LEN], password[USERNAME_LEN], file_name[64];
     int srv_port;
-
     sscanf(buffer, "%s", tmp);
-    if(!strcmp("esc", tmp))
-        Device_esc();
-    else if (!strcmp("in", tmp) && !Device.is_logged_in) {
-        if (sscanf(buffer, "%s %d %s %s", tmp, &srv_port, username, password) == 4) {
-            Device_in(srv_port, username, password);
+    if (!Device.is_chatting) { // main menu
+        if(!strcmp("esc", tmp))
+            Device_esc();
+        else if (!strcmp("in", tmp) && !Device.is_logged_in) {
+            if (sscanf(buffer, "%s %d %s %s", tmp, &srv_port, username, password) == 4) {
+                Device_in(srv_port, username, password);
+            } else {
+                SCREEN_PRINT(("formato non valido per il comando %s %d %s %s", tmp, srv_port, username, password));
+            }
+        } else if (!strcmp("signup", tmp) && !Device.is_logged_in) {
+            if (sscanf(buffer, "%s %s %s", tmp, username, password) == 3) {
+                Device_signup(username, password);
+            } else {
+                SCREEN_PRINT(("formato non valido per il comando %s %s %s", tmp, username, password));
+            }
+        } else if (!strcmp("hanging", tmp) && Device.is_logged_in) {
+            Device_hanging();
+        } else if (!strcmp("show", tmp) && Device.is_logged_in) {
+            if (sscanf(buffer, "%s %s", tmp, username) == 2) {
+                Device_show(username);
+            } else {
+                SCREEN_PRINT(("formato non valido per il comando %s %s", tmp, username));
+            }
+        } else if (!strcmp("chat", tmp) && Device.is_logged_in) {
+            if (sscanf(buffer, "%s %s", tmp, username) == 2) {
+                Device_chat(username);
+            } else {
+                SCREEN_PRINT(("formato non valido per il comando %s %s", tmp, username));
+            }
+        } else if (!strcmp("share", tmp) && Device.is_logged_in) {
+            if (sscanf(buffer, "%s %s", tmp, file_name) == 2) {
+                Device_share(file_name);
+            } else {
+                SCREEN_PRINT(("formato non valido per il comando %s %s", tmp, file_name));
+            }
+        } else if (!strcmp("out", tmp) && Device.is_logged_in) {
+            Device_out();
+        } else if (!strcmp("help", tmp)) {
+            Cmd_showMenu(Device.available_cmds, CMDLIST_LEN, Device.is_logged_in);
         } else {
-            SCREEN_PRINT(("formato non valido per il comando %s %d %s %s", tmp, srv_port, username, password));
+            SCREEN_PRINT(("comando non valido: %s", tmp));
         }
-    } else if (!strcmp("signup", tmp) && !Device.is_logged_in) {
-        if (sscanf(buffer, "%s %s %s", tmp, username, password) == 3) {
-            Device_signup(username, password);
+    } else { // user is chatting
+        if(!strcmp("\\q", tmp)) {
+            Device.is_chatting = false;
+            // TODO: remove receivers
+        } else if (!strcmp("\\u", tmp)) {
+            DEBUG_PRINT(("user2\nuser3\n"));
+            //TODO: only print users in contacts that are online
+        } else if (!strcmp("\\a", tmp)) {
+            if (sscanf(buffer, "%s %s", tmp, username) == 2) {
+                DEBUG_PRINT(("added %s to chat", username));
+                //TODO: check username validity and add as chat receiver
+            } else {
+                SCREEN_PRINT(("formato non valido per il comando %s %s", tmp, username));
+            }
         } else {
-            SCREEN_PRINT(("formato non valido per il comando %s %s %s", tmp, username, password));
+            SCREEN_PRINT(("invio messaggio: %s", tmp));
         }
-    } else if (!strcmp("hanging", tmp) && Device.is_logged_in) {
-        Device_hanging();
-    } else if (!strcmp("show", tmp) && Device.is_logged_in) {
-        if (sscanf(buffer, "%s %s", tmp, username) == 2) {
-            Device_show(username);
-        } else {
-            SCREEN_PRINT(("formato non valido per il comando %s %s", tmp, username));
-        }
-    } else if (!strcmp("chat", tmp) && Device.is_logged_in) {
-        if (sscanf(buffer, "%s %s", tmp, username) == 2) {
-            Device_chat(username);
-        } else {
-            SCREEN_PRINT(("formato non valido per il comando %s %s", tmp, username));
-        }
-    } else if (!strcmp("share", tmp) && Device.is_logged_in) {
-        if (sscanf(buffer, "%s %s", tmp, file_name) == 2) {
-            Device_share(file_name);
-        } else {
-            SCREEN_PRINT(("formato non valido per il comando %s %s", tmp, file_name));
-        }
-    } else if (!strcmp("out", tmp) && Device.is_logged_in) {
-        Device_out();
-    } else {
-        SCREEN_PRINT(("comando non valido: %s", tmp));
     }
-    Cmd_showMenu(Device.available_cmds, CMDLIST_LEN, Device.is_logged_in);
+    SCREEN_PRINT(("                                      ")); // clean line necessary with '\r'
 }
 
 void Device_handleUDP(int sd)
