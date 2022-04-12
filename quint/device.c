@@ -397,7 +397,13 @@ int main(int argv, char *argc[])
     
     Device_init(argv, argc);
     Cmd_showMenu(Device.available_cmds, CMDLIST_LEN, false);
-    IOMultiplex(Device.port, true, Device_handleSTDIN, Device_handleUDP, Device_handleTCP);
+    IOMultiplex(Device.port, 
+                true, 
+                Device_handleSTDIN, 
+                Device_handleUDP, 
+                Device_handleTCP,
+                0,
+                NULL);
 
     return 1;
 }

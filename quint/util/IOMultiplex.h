@@ -7,9 +7,9 @@ struct sIOMultiplexer
 } iom;
 
 void IOMultiplex(int port, 
-                // struct sIOMultiplexer* iom, 
                 bool use_udp, 
                 void (*handleSTDIN)(char* buffer),
                 void (*handleUDP)(int sd),
-                //void (*handleTCP)(char* cmd, int sd));
-                void (*handleTCP)(int sd));
+                void (*handleTCP)(int sd),
+                int timeout_sec,
+                void (*onTimeout)());

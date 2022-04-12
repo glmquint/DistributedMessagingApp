@@ -95,9 +95,13 @@ void Server_saveUserEntry()
     }
     int count = 0;
     UserEntry* elem;
-    for (elem = Server.user_register_head; elem != NULL; elem = elem->next) {
+    // for (elem = Server.user_register_head; elem != NULL; elem = elem->next) {
+    while(Server.user_register_head) {
+        elem = Server.user_register_head;
         fprintf(fp, "%s %s %ld %ld\n", elem->user_dest, elem->password, elem->timestamp_login, elem->timestamp_logout);
         count++;
+        Server.user_register_head = elem->next;
+        free(elem);
     }
     DEBUG_PRINT(("%d utenti salvati in %s", count, Server.shadow_file));
     fclose(fp);
@@ -105,7 +109,8 @@ void Server_saveUserEntry()
 
 void Server_esc()
 {
-    Server_saveUserEntry();
+    // Server_loadUserEntry();
+    // Server_saveUserEntry();
     printf("Arrivederci\n");
     exit(0);
 }
@@ -125,6 +130,7 @@ void Server_list()
         }
     }
     SCREEN_PRINT(("%d utenti connessi su %d totali", logged_in_users, total_users));
+    Server_saveUserEntry();
 }
 
 void Server_handleSTDIN(char* buffer)
@@ -147,6 +153,11 @@ void Server_handleSTDIN(char* buffer)
 void Server_handleUDP(int sd)
 {
     
+}
+
+void Server_onTimeout()
+{
+    DEBUG_PRINT((":"));
 }
 
 bool Server_checkCredentials(char* username, char* password, int dev_port)
@@ -199,8 +210,9 @@ void Server_handleTCP(int sd)
     char username[32], password[32];
     int dev_port;
     time_t logout_ts;
-    // DEBUG_PRINT(("ricevuto messaggio TCP su socket: %d", sd));
+    DEBUG_PRINT(("ricevuto messaggio TCP su socket: %d", sd));
     net_receiveTCP(sd, cmd, &tmp);
+    DEBUG_PRINT(("comando ricevuto: %s", cmd));
     if (!strcmp("LOGIN", cmd)) {
         //DEBUG_PRINT(("corpo di signin: %s", tmp));
         if (sscanf(tmp, "%s %s %d", username, password, &dev_port) == 3){
@@ -233,6 +245,7 @@ void Server_handleTCP(int sd)
     } else if (!strcmp("LGOUT", cmd)) {
         if (tmp != NULL && sscanf(tmp, "%s %ld", username, &logout_ts) == 2) {
             UserEntry* elem;
+            Server_loadUserEntry();
             for (elem = Server.user_register_head; elem != NULL; elem = elem->next) {
                 if (!strcmp(elem->user_dest, username)) {
                     if (logout_ts == 0)
@@ -240,6 +253,7 @@ void Server_handleTCP(int sd)
                     else
                         elem->timestamp_logout = logout_ts;
                     DEBUG_PRINT(("utente %s disconnesso", username));
+                    Server_saveUserEntry();
                     break;
                 }
             }
@@ -258,6 +272,12 @@ void Server_handleTCP(int sd)
 int main(int argv, char *argc[]){
     Server_init(argv, argc);
     Cmd_showMenu(Server.available_cmds, CMDLIST_LEN, true);
-    IOMultiplex(Server.port, true, Server_handleSTDIN, Server_handleUDP, Server_handleTCP);
+    IOMultiplex(Server.port, 
+                true, 
+                Server_handleSTDIN, 
+                Server_handleUDP, 
+                Server_handleTCP, 
+                2, 
+                Server_onTimeout);
     return 1;
 }

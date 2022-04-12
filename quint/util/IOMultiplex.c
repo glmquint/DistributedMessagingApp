@@ -35,7 +35,9 @@ void IOMultiplex(int port,
                 bool use_udp, 
                 void (*handleSTDIN)(char* buffer),
                 void (*handleUDP)(int sd),
-                void (*handleTCP)(int sd))
+                void (*handleTCP)(int sd),
+                int timeout_sec,
+                void (*onTimeout)())
 {
     int ret, newfd, listener, i, udp_listener;
     socklen_t addrlen;
@@ -82,9 +84,12 @@ void IOMultiplex(int port,
 
     while (1) {
         iom.read_fds = iom.master;
-        tv.tv_sec = 20; // 20 seconds wait
-        tv.tv_usec = 0;
-        i = select(iom.fdmax + 1, &(iom.read_fds), NULL, NULL, &tv);
+        if (timeout_sec != 0) {
+            tv.tv_sec = timeout_sec;
+            tv.tv_usec = 0;
+            i = select(iom.fdmax + 1, &(iom.read_fds), NULL, NULL, &tv);
+        } else 
+            i = select(iom.fdmax + 1, &(iom.read_fds), NULL, NULL, NULL);
         if (i < 0) {
             perror("select: ");
             exit(1);
@@ -125,9 +130,12 @@ void IOMultiplex(int port,
                     }
                 }
             }
-        } else { // select == 0
+        } else { // select == 0 (timeout elapsed)
+            /*
             printf("."); // TODO: sanity checks
             fflush(stdout);
+            */
+            onTimeout();
         }
     }
 
