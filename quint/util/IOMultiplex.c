@@ -13,7 +13,7 @@
 #define STDIN 0
 #define REQ_LEN 6
 
-#define DEBUG_OFF
+#define DEBUG_ON
 
 #ifdef DEBUG_ON
 # define DEBUG_PRINT(x) printf("[DEBUG]: "); printf x; printf("\n"); fflush(stdout)
@@ -39,7 +39,7 @@ void IOMultiplex(int port,
                 int timeout_sec,
                 void (*onTimeout)())
 {
-    int ret, newfd, listener, i, udp_listener;
+    int ret, newfd, listener, i, udp_socket;
     socklen_t addrlen;
     struct sockaddr_in my_addr, cl_addr;
     char buffer[1024];
@@ -70,17 +70,17 @@ void IOMultiplex(int port,
     FD_SET(listener, &(iom.master));
 
     if (use_udp) {
-        udp_listener = socket(AF_INET, SOCK_DGRAM, 0);
-        ret = bind(udp_listener, (struct sockaddr *)&my_addr, sizeof(my_addr));
+        udp_socket = socket(AF_INET, SOCK_DGRAM, 0);
+        ret = bind(udp_socket, (struct sockaddr *)&my_addr, sizeof(my_addr));
         if (ret < 0) {
             perror("Bind UDP non riuscita\n");
             exit(0);
         }
-        FD_SET(udp_listener, &(iom.master));
+        FD_SET(udp_socket, &(iom.master));
     } else
-        udp_listener = -1;
+        udp_socket = -1;
 
-    iom.fdmax = (listener > udp_listener) ? listener : udp_listener;
+    iom.fdmax = (listener > udp_socket) ? listener : udp_socket;
 
     while (1) {
         iom.read_fds = iom.master;
@@ -96,7 +96,7 @@ void IOMultiplex(int port,
         }
         if (i > 0) {
 
-            for (i = 0; i <= iom.fdmax; i++) {
+            for (i = 0; i <= iom.fdmax+1; i++) {
                 if (FD_ISSET(i, &(iom.read_fds))) {
                     DEBUG_PRINT(("%d is set\n", i));
                     if (i == listener) { // 
@@ -110,7 +110,7 @@ void IOMultiplex(int port,
                         if (fgets(buffer, sizeof buffer, stdin))
                             handleSTDIN(buffer);
                     }
-                    else if (i == udp_listener) { // messaggio UDP
+                    else if (i == udp_socket) { // messaggio UDP
                         handleUDP(i);
                     }
                     else { // messaggio TCP

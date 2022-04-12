@@ -158,7 +158,7 @@ void Device_updateCachedLogout(char* username)
         time_t disconnect_ts;
         if (fscanf(fp, "%ld", &disconnect_ts) == 1) {
             char user_ts[64]; // 64 = len(USERNAME_LEN) + margine per un long int in decimale
-            sprintf(user_ts, "%s %ld", "pippo", disconnect_ts);
+            sprintf(user_ts, "%s %ld", username, disconnect_ts);
             int sd = net_initTCP(Device.srv_port);
             if (sd != -1) {
                 // TODO: try refactoring with Device_out()
@@ -234,7 +234,7 @@ void Device_in(int srv_port, char* username, char* password)
                 sscanf(username, "%s", Device.username);
                 Device_loadContacts();
             } else if (!strcmp("UKNWN", cmd)) {
-                SCREEN_PRINT(("login rifiutata: utente sconosciuto"));
+                SCREEN_PRINT(("login rifiutata: credenziali errate"));
             } else {
                 SCREEN_PRINT(("errore durante la login"));
             }
@@ -383,18 +383,18 @@ void Device_handleSTDIN(char* buffer)
 
 void Device_handleUDP(int sd)
 {
-    printf("Device_handleUDP(%d)", sd);
+    DEBUG_PRINT(("Device_handleUDP(%d)", sd));
+    net_answerHeartBeat(sd, Device.port);
 }
 
 //void Device_handleTCP(char* cmd, int sd)
 void Device_handleTCP(int sd)
 {
-    printf("Device_handleTCP(%d)", sd);
+    DEBUG_PRINT(("Device_handleTCP(%d)", sd));
 }
 
 int main(int argv, char *argc[]) 
 {
-    
     Device_init(argv, argc);
     Cmd_showMenu(Device.available_cmds, CMDLIST_LEN, false);
     IOMultiplex(Device.port, 

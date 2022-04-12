@@ -8,7 +8,7 @@
 #include <netinet/in.h>
 #include "network.h"
 
-#define DEBUG_OFF
+#define DEBUG_ON
 
 #ifdef DEBUG_ON
 # define DEBUG_PRINT(x) printf("  [debug]: "); printf x; printf("\n"); fflush(stdout)
@@ -96,13 +96,15 @@ void net_receiveTCP(int sd, char protocol[6], char** buffer)
 }
 
 //FIXME: check and format
-void net_askHearthBeat(int port)
+void net_askHearthBeat(int remote_port, int local_port)
 {
-    int sockfd;
+    int sd;
     struct sockaddr_in servaddr;
     char* heart_beat_msg = "HRTBT";
+    uint16_t local_port_net;
+    DEBUG_PRINT(("asking heart beat to %d", remote_port));
 
-    if ((sockfd = socket(AF_INET, SOCK_DGRAM, 0)) < 0) {
+    if ((sd = socket(AF_INET, SOCK_DGRAM, 0)) < 0) {
         perror("socket creation failed");
         exit(0);
     }
@@ -110,20 +112,67 @@ void net_askHearthBeat(int port)
     memset(&servaddr, 0, sizeof(servaddr));
 
     servaddr.sin_family = AF_INET;
-    servaddr.sin_port = htons(port);
-    servaddr.sin_addr.s_addr = inet_addr("127.0.0.1");
+    servaddr.sin_port = htons(remote_port);
+    inet_pton(AF_INET, "127.0.0.1", &servaddr.sin_addr);
 
-    sendto(sockfd, (const char*)heart_beat_msg, REQ_LEN, 0, (const struct sockaddr*)&servaddr, sizeof(servaddr));
+    if (sendto(sd, heart_beat_msg, REQ_LEN, 0, (struct sockaddr*)&servaddr, sizeof(servaddr)) < 0)
+        perror("errore durante la sendto: ");
 
-    close(sockfd);
+    local_port_net = htons(local_port);
+    if (sendto(sd, &local_port_net, sizeof(local_port_net), 0, (struct sockaddr*)&servaddr, sizeof(servaddr)) < 0)
+        perror("errore durante la sendto: ");
+
+    close(sd);
 }
 
-void net_answerHeartBeat(int sd)
+void net_answerHeartBeat(int sd, int local_port)
 {
     char buffer[REQ_LEN];
     int n, len;
-    struct sockaddr_in servaddr;
-    n = recvfrom(sd, (char*)buffer, REQ_LEN, 0, (struct sockaddr*)&servaddr, &len);
+    struct sockaddr_in claddr;
+    char* alive_msg = "ALIVE";
+    uint16_t remote_port_net, local_port_net;
+
+    len = sizeof(claddr);
+    if (recvfrom(sd, buffer, REQ_LEN, 0, (struct sockaddr*)&claddr, &len) < 0)
+        perror("[1] errore durante la recvfrom: ");
+
     DEBUG_PRINT(("ricevuto su UDP: %s", buffer));
-    close(sd);
+    if (strcmp(buffer, "HRTBT"))
+        return;
+
+    if (recvfrom(sd, &remote_port_net, sizeof(remote_port_net), 0, (struct sockaddr*)&claddr, &len) < 0)
+        perror("[2] errore durante la recvfrom: ");
+
+    claddr.sin_family = AF_INET;
+    claddr.sin_port = remote_port_net; // non c'è bisogno di usare htons in quanto è già nel formato net
+    // inet_pton(AF_INET, "127.0.0.1", &claddr.sin_addr);
+
+    if (sendto(sd, alive_msg, REQ_LEN, 0, (struct sockaddr*)&claddr, sizeof(claddr)) < REQ_LEN)
+        perror("[1] errore durante la sendto");
+
+    local_port_net = htons(local_port);
+    if (sendto(sd, &local_port_net, sizeof(local_port_net), 0, (struct sockaddr*)&claddr, sizeof(claddr)) < 0)
+        perror("[2] errore durante la sendto: ");
+
+    DEBUG_PRINT(("answered alive to %d (n = %d)", ntohs(claddr.sin_port), n));
+}
+
+int net_receiveHeartBeat(int sd)
+{
+    char buffer[REQ_LEN];
+    int remote_port, len;
+    struct sockaddr_in claddr;
+    uint16_t remote_port_net;
+
+    remote_port = -1;
+    len = sizeof(claddr);
+    if (recvfrom(sd, buffer, REQ_LEN, 0, (struct sockaddr*)&claddr, &len) < 0)
+        perror("[1] errore durante la recvfrom: ");
+    if (!strcmp(buffer, "ALIVE")) {
+        if (recvfrom(sd, &remote_port_net, sizeof(remote_port_net), 0, (struct sockaddr*)&claddr, &len) < 0)
+            perror("[2] errore durante la recvfrom: ");
+        remote_port = htons(remote_port_net);
+    }
+    return remote_port;
 }

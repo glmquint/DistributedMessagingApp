@@ -29,7 +29,7 @@ time.o: util/time.c
 # pulizia dei file della compilazione 
 clean: 
 	-rm *.exe *.o dev serv .*-disconnect .*-contacts
-	echo "user1 pass 0 0\nuser2 pass 0 0\nuser3 pass  0 0" > shadow
+	echo "user1 pass 5001 0 0 3\nuser2 pass 5002 0 0 3\nuser3 pass 5003 0 0 3" > shadow
 	echo -en "user2" > .user1-contacts
 	echo -en "user1\nuser3" > .user2-contacts
 	echo -en "user2" > .user3-contacts

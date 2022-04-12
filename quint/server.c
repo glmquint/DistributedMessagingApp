@@ -11,6 +11,7 @@
 #include "util/time.h"
 
 #define CMDLIST_LEN 3
+#define MAX_CHANCES 3
 
 #define DEBUG_ON
 
@@ -29,6 +30,7 @@ struct UserEntry_s {
     int port;
     time_t timestamp_login;
     time_t timestamp_logout;
+    int chances;
     UserEntry* next;
 };
 
@@ -65,7 +67,12 @@ void Server_loadUserEntry()
     } else {
         while ((read = getline(&line, &len, fp)) != -1) {
             UserEntry* this_user = malloc(sizeof(UserEntry));
-            if (sscanf(line, "%s %s %ld %ld", this_user->user_dest, this_user->password, &this_user->timestamp_login, &this_user->timestamp_logout) != 4) {
+            if (sscanf(line, "%s %s %d %ld %ld %d", this_user->user_dest, 
+                                                this_user->password, 
+                                                &this_user->port,
+                                                &this_user->timestamp_login, 
+                                                &this_user->timestamp_logout,
+                                                &this_user->chances) != 6) {
                 DEBUG_PRINT(("errore nel parsing di un record nel file %s", Server.shadow_file));
             } else {
                 this_user->next = NULL;
@@ -98,7 +105,12 @@ void Server_saveUserEntry()
     // for (elem = Server.user_register_head; elem != NULL; elem = elem->next) {
     while(Server.user_register_head) {
         elem = Server.user_register_head;
-        fprintf(fp, "%s %s %ld %ld\n", elem->user_dest, elem->password, elem->timestamp_login, elem->timestamp_logout);
+        fprintf(fp, "%s %s %d %ld %ld %d\n", elem->user_dest, 
+                                        elem->password, 
+                                        elem->port,
+                                        elem->timestamp_login, 
+                                        elem->timestamp_logout,
+                                        elem->chances);
         count++;
         Server.user_register_head = elem->next;
         free(elem);
@@ -152,12 +164,46 @@ void Server_handleSTDIN(char* buffer)
 
 void Server_handleUDP(int sd)
 {
-    
+    UserEntry* elem;
+    DEBUG_PRINT(("\nhandle udp: %d", sd));
+    int remote_port = net_receiveHeartBeat(sd);
+    if (remote_port == -1)
+        return;
+    Server_loadUserEntry();
+    for (elem = Server.user_register_head; elem != NULL; elem = elem->next) {
+        if (elem->port == remote_port) {
+            elem->chances = MAX_CHANCES;
+            break;
+        }
+    }
+    Server_saveUserEntry();
+    /* TODO:
+    cmd = recvfrom(sd)
+    if (cmd == 'ALIVE'):
+        user_register[elem].chaces = MAX_CHANCES
+    */
 }
 
 void Server_onTimeout()
 {
+    UserEntry* elem;
     DEBUG_PRINT((":"));
+    Server_loadUserEntry();
+    for (elem = Server.user_register_head; elem != NULL; elem = elem->next) {
+        if (elem->timestamp_login > elem->timestamp_logout) {
+            if (elem->chances > 0) {
+                net_askHearthBeat(elem->port, Server.port);
+                elem->chances--;
+                DEBUG_PRINT(("%s now only has %d chances left", elem->user_dest, elem->chances));
+            } else { // no chances left
+                // TODO: make it disconnected
+                elem->timestamp_logout = getTimestamp();
+                DEBUG_PRINT(("%s disconnected", elem->user_dest));
+            }
+        }
+    }
+
+    Server_saveUserEntry();
 }
 
 bool Server_checkCredentials(char* username, char* password, int dev_port)
@@ -168,6 +214,7 @@ bool Server_checkCredentials(char* username, char* password, int dev_port)
         if (!strcmp(username, elem->user_dest) && !strcmp(password, elem->password)) {
             elem->timestamp_login = getTimestamp();
             elem->port = dev_port;
+            elem->chances = MAX_CHANCES;
             Server_saveUserEntry();
             return true;
         }
@@ -188,6 +235,7 @@ bool Server_signupCredentials(char* username, char* password, int dev_port)
     this_user->next = NULL;
     this_user->timestamp_login = getTimestamp();
     this_user->port = dev_port;
+    this_user->chances = MAX_CHANCES;
     sscanf(username, "%s", this_user->user_dest);
     sscanf(password, "%s", this_user->password);
     if (Server.user_register_head == NULL) {
@@ -210,13 +258,13 @@ void Server_handleTCP(int sd)
     char username[32], password[32];
     int dev_port;
     time_t logout_ts;
-    DEBUG_PRINT(("ricevuto messaggio TCP su socket: %d", sd));
+    // DEBUG_PRINT(("ricevuto messaggio TCP su socket: %d", sd));
     net_receiveTCP(sd, cmd, &tmp);
-    DEBUG_PRINT(("comando ricevuto: %s", cmd));
+    // DEBUG_PRINT(("comando ricevuto: %s", cmd));
     if (!strcmp("LOGIN", cmd)) {
         //DEBUG_PRINT(("corpo di signin: %s", tmp));
         if (sscanf(tmp, "%s %s %d", username, password, &dev_port) == 3){
-            DEBUG_PRINT(("ricevuta richiesta di login da parte di ( %s : %s )", username, password));
+            DEBUG_PRINT(("ricevuta richiesta di login da parte di ( %s : %s : %d )", username, password, dev_port));
             if (Server_checkCredentials(username, password, dev_port)) {
                 net_sendTCP(sd, "OK-OK", "");
                 DEBUG_PRINT(("richiesta di login accettata"));
@@ -269,7 +317,8 @@ void Server_handleTCP(int sd)
     FD_CLR(sd, &iom.master);
 }
 
-int main(int argv, char *argc[]){
+int main(int argv, char *argc[])
+{
     Server_init(argv, argc);
     Cmd_showMenu(Server.available_cmds, CMDLIST_LEN, true);
     IOMultiplex(Server.port, 
@@ -277,7 +326,7 @@ int main(int argv, char *argc[]){
                 Server_handleSTDIN, 
                 Server_handleUDP, 
                 Server_handleTCP, 
-                2, 
+                5, 
                 Server_onTimeout);
     return 1;
 }
