@@ -11,6 +11,7 @@
 #define STDIN_BUF_LEN 128
 #define CMDLIST_LEN 9
 #define USERNAME_LEN 32
+#define REQ_LEN 6
 
 #define DEBUG_ON
 
@@ -218,7 +219,7 @@ void Device_esc()
 
 void Device_in(int srv_port, char* username, char* password)
 {
-    char *tmp, cmd[6];
+    char *tmp, cmd[REQ_LEN];
     char credentials[70];
     DEBUG_PRINT(("richiesta di login sul server localhost:%d con credenziali ( %s : %s )", srv_port, username, password));
     int sd = net_initTCP(srv_port);
@@ -252,7 +253,7 @@ void Device_in(int srv_port, char* username, char* password)
 
 void Device_signup(char* username, char* password)
 {
-    char *tmp, cmd[6];
+    char *tmp, cmd[REQ_LEN];
     char credentials[70];
     int sd = net_initTCP(Device.srv_port); // presupponiamo che il server si trovi a questa porta!!
     if (sd != -1) {
@@ -341,15 +342,46 @@ void Device_addToChat(char* username)
             strcpy (Device.joined_chat_receivers + sz, elem->username);
             first = false;
             sz += len;
-            /*
-            Device.joined_chat_receivers = realloc(Device.joined_chat_receivers, strlen(username));
-            strcpy(Device.joined_chat_receivers, username);
-            */
         }
     }
     if (!found) {
         SCREEN_PRINT(("impossibile aggiungere %s alla chat: utente non trovato nella rubrica", username));
     }
+}
+
+void Device_showOnlineContacts()
+{
+    //TODO: only print users in contacts that are online asking server
+    // DEBUG_PRINT(("user2\nuser3\n"));
+    char ans[REQ_LEN];
+    UserContact* elem;
+    char* buffer;
+    int sd;
+    int total = 0, count = 0, unregistered = 0, errors = 0;
+    printf("Status contatti ([-]: in attesa, [+]: online, [X]: disconnesso, [?] non registrato)\n");
+    for (elem = Device.contacts_head; elem != NULL; elem = elem->next) {
+        sd = net_initTCP(Device.srv_port);
+        printf(" [-] %s", elem->username);
+        net_sendTCP(sd, "ISONL", elem->username);
+        net_receiveTCP(sd, ans, &buffer);
+        if (!strcmp(ans, "ONLIN")){ // user is online
+            printf("\r [+] %s\n", elem->username);
+            sscanf(buffer, "%d", &elem->port);
+            count++;
+        } else if (!strcmp(ans, "DSCNT")) { // user is disconnected
+            printf("\r [X] %s\n", elem->username);
+        } else if (!strcmp(ans, "UNKWN")) { // unknown username
+            printf("\r [?] %s\n", elem->username);
+            unregistered++;
+        } else {
+            DEBUG_PRINT(("ricevuta risposta non valida da parte del server"));
+            errors++;
+        }
+        total++;
+    }
+    SCREEN_PRINT(("%d utenti online su %d in rubrica (%d utenti non registrati, %d errori)", count, total, unregistered, errors));
+    close(sd);
+    FD_CLR(sd, &iom.master);
 }
 
 void Device_quitChat()
@@ -366,6 +398,12 @@ void Device_share(char* file_name)
     } else {
         DEBUG_PRINT(("sharing %s", file_name));
     }
+}
+
+void Device_send(char* message)
+{
+    //TODO:
+    SCREEN_PRINT(("invio messaggio: %s", message));
 }
 
 void Device_handleSTDIN(char* buffer)
@@ -418,14 +456,11 @@ void Device_handleSTDIN(char* buffer)
     } else { // user is chatting
         if(!strcmp("\\q", tmp)) {
             Device_quitChat();
-            // TODO: remove receivers
         } else if (!strcmp("\\u", tmp)) {
-            DEBUG_PRINT(("user2\nuser3\n"));
-            //TODO: only print users in contacts that are online
+            Device_showOnlineContacts();
         } else if (!strcmp("\\a", tmp)) {
             if (sscanf(buffer, "%s %s", tmp, username) == 2) {
                 Device_addToChat(username);
-                //TODO: check username validity and add as chat receiver
             } else {
                 SCREEN_PRINT(("formato non valido per il comando %s %s (specificare username)", tmp, username));
             }
@@ -436,7 +471,7 @@ void Device_handleSTDIN(char* buffer)
                 SCREEN_PRINT(("formato non valido per il comando %s %s (speicificare filename)", tmp, file_name));
             }
         } else {
-            SCREEN_PRINT(("invio messaggio: %s", buffer));
+            Device_send(buffer);
         }
     }
     SCREEN_PRINT(("                                      ")); // clean line necessary with '\r'
@@ -444,7 +479,6 @@ void Device_handleSTDIN(char* buffer)
 
 void Device_handleUDP(int sd)
 {
-    DEBUG_PRINT(("Device_handleUDP(%d)", sd));
     net_answerHeartBeat(sd, Device.port);
 }
 

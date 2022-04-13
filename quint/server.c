@@ -12,6 +12,7 @@
 
 #define CMDLIST_LEN 3
 #define MAX_CHANCES 3
+#define REQ_LEN 6
 
 #define DEBUG_ON
 
@@ -83,7 +84,7 @@ void Server_loadUserEntry()
                     Server.user_register_tail->next = this_user;
                     Server.user_register_tail = this_user;
                 }
-                DEBUG_PRINT(("credenziali caricate: %s %s", this_user->user_dest, this_user->password));
+                // DEBUG_PRINT(("credenziali caricate: %s %s", this_user->user_dest, this_user->password));
             }
         }
     fclose(fp);
@@ -115,7 +116,7 @@ void Server_saveUserEntry()
         Server.user_register_head = elem->next;
         free(elem);
     }
-    DEBUG_PRINT(("%d utenti salvati in %s", count, Server.shadow_file));
+    // DEBUG_PRINT(("%d utenti salvati in %s", count, Server.shadow_file));
     fclose(fp);
 }
 
@@ -165,7 +166,6 @@ void Server_handleSTDIN(char* buffer)
 void Server_handleUDP(int sd)
 {
     UserEntry* elem;
-    DEBUG_PRINT(("\nhandle udp: %d", sd));
     int remote_port = net_receiveHeartBeat(sd);
     if (remote_port == -1)
         return;
@@ -177,24 +177,18 @@ void Server_handleUDP(int sd)
         }
     }
     Server_saveUserEntry();
-    /* TODO:
-    cmd = recvfrom(sd)
-    if (cmd == 'ALIVE'):
-        user_register[elem].chaces = MAX_CHANCES
-    */
 }
 
 void Server_onTimeout()
 {
     UserEntry* elem;
-    DEBUG_PRINT((":"));
     Server_loadUserEntry();
     for (elem = Server.user_register_head; elem != NULL; elem = elem->next) {
         if (elem->timestamp_login > elem->timestamp_logout) {
             if (elem->chances > 0) {
                 net_askHearthBeat(elem->port, Server.port);
                 elem->chances--;
-                DEBUG_PRINT(("%s now only has %d chances left", elem->user_dest, elem->chances));
+                // DEBUG_PRINT(("%s now only has %d chances left", elem->user_dest, elem->chances));
             } else { // no chances left
                 // TODO: make it disconnected
                 elem->timestamp_logout = getTimestamp();
@@ -254,10 +248,13 @@ bool Server_signupCredentials(char* username, char* password, int dev_port)
 
 void Server_handleTCP(int sd)
 {
-    char *tmp, cmd[6];
+    char *tmp, cmd[REQ_LEN];
     char username[32], password[32];
+    char port_str[6];
     int dev_port;
     time_t logout_ts;
+    UserEntry* elem;
+    bool found;
     // DEBUG_PRINT(("ricevuto messaggio TCP su socket: %d", sd));
     net_receiveTCP(sd, cmd, &tmp);
     // DEBUG_PRINT(("comando ricevuto: %s", cmd));
@@ -292,7 +289,6 @@ void Server_handleTCP(int sd)
         }
     } else if (!strcmp("LGOUT", cmd)) {
         if (tmp != NULL && sscanf(tmp, "%s %ld", username, &logout_ts) == 2) {
-            UserEntry* elem;
             Server_loadUserEntry();
             for (elem = Server.user_register_head; elem != NULL; elem = elem->next) {
                 if (!strcmp(elem->user_dest, username)) {
@@ -307,6 +303,27 @@ void Server_handleTCP(int sd)
             }
         } else {
             DEBUG_PRINT(("richiesta di disconnessione anonima. Nessun effetto"));
+        }
+    } else if (!strcmp("ISONL", cmd)) {
+        if (sscanf(tmp, "%s", username) == 1) {
+            Server_loadUserEntry();
+            found = false;
+            for (elem = Server.user_register_head; elem != NULL; elem = elem->next) {
+                if (!strcmp(elem->user_dest, username)) {
+                    if (elem->timestamp_login > elem->timestamp_logout) {
+                        sprintf(port_str, "%d", elem->port);
+                        net_sendTCP(sd, "ONLIN", port_str);
+                    } else {
+                        net_sendTCP(sd, "DSCNT", "");
+                    }
+                    found = true;
+                    break;
+                }
+            }
+            if (!found)
+                net_sendTCP(sd, "UNKWN", "");
+        } else {
+            DEBUG_PRINT(("ricevuta richiesta di conenttività ma nessun username trasmesso"));
         }
     } else {
         DEBUG_PRINT(("ricevuto comando remoto non valido: %s", cmd));
@@ -326,7 +343,7 @@ int main(int argv, char *argc[])
                 Server_handleSTDIN, 
                 Server_handleUDP, 
                 Server_handleTCP, 
-                25, 
+                1, 
                 Server_onTimeout);
     return 1;
 }

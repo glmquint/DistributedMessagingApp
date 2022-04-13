@@ -13,7 +13,7 @@
 #define STDIN 0
 #define REQ_LEN 6
 
-#define DEBUG_ON
+#define DEBUG_OFF
 
 #ifdef DEBUG_ON
 # define DEBUG_PRINT(x) printf("[DEBUG]: "); printf x; printf("\n"); fflush(stdout)
