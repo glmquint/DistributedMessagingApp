@@ -403,7 +403,23 @@ void Device_share(char* file_name)
 void Device_send(char* message)
 {
     //TODO:
+    int sd, newlen;
+    char* payload = malloc(0);
     SCREEN_PRINT(("invio messaggio: %s", message));
+    sd = net_initTCP(Device.srv_port);
+    newlen = strlen(Device.username) + 
+                        strlen(Device.joined_chat_receivers) + 
+                        strlen(message) + 2;
+    DEBUG_PRINT(("newlen = %d (%ld + %ld + %ld + 2)", newlen, strlen(Device.username), strlen(Device.joined_chat_receivers), strlen(message)));
+    payload = realloc(payload, newlen);
+    strcpy(payload, Device.username);
+    payload = strcat(strcat(strcat(strcat(payload, "\n"), 
+                                        Device.joined_chat_receivers), "\n"), 
+                                        message);
+    net_sendTCP(sd, "|MSG|", payload);
+    free(payload);
+    // close(sd);
+    // FD_CLR(sd, &iom.master);
 }
 
 void Device_handleSTDIN(char* buffer)

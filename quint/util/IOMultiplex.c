@@ -82,11 +82,12 @@ void IOMultiplex(int port,
 
     iom.fdmax = (listener > udp_socket) ? listener : udp_socket;
 
+    tv.tv_sec = timeout_sec;
+    tv.tv_usec = 0;
+
     while (1) {
         iom.read_fds = iom.master;
         if (timeout_sec != 0) {
-            tv.tv_sec = timeout_sec;
-            tv.tv_usec = 0;
             i = select(iom.fdmax + 1, &(iom.read_fds), NULL, NULL, &tv);
         } else 
             i = select(iom.fdmax + 1, &(iom.read_fds), NULL, NULL, NULL);
@@ -107,7 +108,8 @@ void IOMultiplex(int port,
                             iom.fdmax = newfd;
                     }
                     else if (i == STDIN) { // input da tastiera
-                        if (fgets(buffer, sizeof buffer, stdin))
+                        // if (fgets(buffer, sizeof buffer, stdin))
+                        if (read(STDIN, buffer, sizeof(buffer)))
                             handleSTDIN(buffer);
                     }
                     else if (i == udp_socket) { // messaggio UDP
@@ -136,6 +138,8 @@ void IOMultiplex(int port,
             fflush(stdout);
             */
             onTimeout();
+            tv.tv_sec = timeout_sec;
+            tv.tv_usec = 0;
         }
     }
 

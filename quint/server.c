@@ -325,6 +325,8 @@ void Server_handleTCP(int sd)
         } else {
             DEBUG_PRINT(("ricevuta richiesta di conenttività ma nessun username trasmesso"));
         }
+    } else if (!strcmp("|MSG|", cmd)) {
+        DEBUG_PRINT(("ricevuta richiesta di inoltro messaggio: %s", tmp));
     } else {
         DEBUG_PRINT(("ricevuto comando remoto non valido: %s", cmd));
     }
@@ -343,7 +345,7 @@ int main(int argv, char *argc[])
                 Server_handleSTDIN, 
                 Server_handleUDP, 
                 Server_handleTCP, 
-                1, 
+                5, 
                 Server_onTimeout);
     return 1;
 }

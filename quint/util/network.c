@@ -8,7 +8,7 @@
 #include <netinet/in.h>
 #include "network.h"
 
-#define DEBUG_OFF
+#define DEBUG_ON
 
 #ifdef DEBUG_ON
 # define DEBUG_PRINT(x) printf("  [debug]: "); printf x; printf("\n"); fflush(stdout)
@@ -35,27 +35,29 @@ int net_initTCP(int sv_port)
     return sd;
 }
 
-void net_sendTCP(int sd, char protocol[6], char* buffer)
+int net_sendTCP(int sd, char protocol[6], char* buffer)
 {
     int len = strlen(buffer);
     uint16_t lmsg = htons(len);
+    int ret; 
     DEBUG_PRINT(("send protocol: %s", protocol));
     if (send(sd, (void *)protocol, REQ_LEN, 0) < 0) {
         perror("Errore in fase di invio protocollo");
         exit(-1);
     }
     DEBUG_PRINT(("send buffer length: %d", len));
-    if (send(sd, (void *)&lmsg, sizeof(uint16_t), 0) < 0) {
+    if (ret = send(sd, (void *)&lmsg, sizeof(uint16_t), 0) < 0) {
         perror("Errore in fase di invio lunghezza messaggio");
         exit(-1);
     }
     if (len > 0) { // non eseguire la send se il messaggio è vuoto
         DEBUG_PRINT(("send buffer: %s", buffer));
-        if (send(sd, (char *)buffer, len, 0) < len) {
+        if (ret = send(sd, (char *)buffer, len, 0) < len) {
             perror("Errore in fase di invio messaggio");
             exit(-1);
         }
     }
+    return ret;
 }
 
 // viene allocata memoria per buffer! Ricordarsi di usare free
