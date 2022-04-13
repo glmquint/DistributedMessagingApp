@@ -30,9 +30,9 @@ time.o: util/time.c
 clean: 
 	-rm *.exe *.o dev serv .*-disconnect .*-contacts
 	echo "user1 pass 5001 0 0 3\nuser2 pass 5002 0 0 3\nuser3 pass 5003 0 0 3" > shadow
-	echo -en "user2" > .user1-contacts
-	echo -en "user1\nuser3" > .user2-contacts
-	echo -en "user2" > .user3-contacts
+	echo "user2" > .user1-contacts
+	echo "user1\nuser3" > .user2-contacts
+	echo "user2" > .user3-contacts
 
 # sezione dedicata al testing del codice in fase di sviluppo
 
