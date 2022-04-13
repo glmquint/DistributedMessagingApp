@@ -42,8 +42,8 @@ struct Msg_s {
 typedef struct UserContact_s UserContact;
 struct UserContact_s {
     char username[USERNAME_LEN];
-    int port;
-    bool is_in_chat;
+    int port; // benché i messaggi vengano recapitati dal server, port permette l'invio P2P di file
+    bool is_in_chat; // se l'utente è tra i destinatari con cui il device sta chattando
     Msg* chat_head; // lista dei messaggi
     Msg* chat_tail;
     UserContact* next;
@@ -54,6 +54,7 @@ UserContact* new_UserContact() {
     memset(contact->username, '\0', USERNAME_LEN);
     strcpy(contact->username, "UNKNWOWN");
     contact->port = -1;
+    contact->is_in_chat = false;
     contact->chat_head = NULL;
     contact->chat_tail = NULL;
     contact->next = NULL;
@@ -66,10 +67,11 @@ struct Device_s {
     char username[USERNAME_LEN];
     int port;
     int srv_port;
+    char* joined_chat_receivers;
     Cmd available_cmds[CMDLIST_LEN]; // lista dei comandi invacabili dal menu
     UserContact* contacts_head; // lista dei contatti nella rubrica dell'utente loggato
     UserContact* contacts_tail;
-} Device = {false, false, "", -1, 4242, { // singleton per ogni device
+} Device = {false, false, "", -1, 4242, NULL, { // singleton per ogni device
     {"help", {""}, 0, "mostra i dettagli dei comandi",  false, true},
     {"signup", {"username", "password"}, 2, "crea un account sul server", false, false},
     {"in", {"srv_port", "username", "password"}, 3, "richiede al server la connessione al servizio", false, false},
@@ -84,7 +86,7 @@ struct Device_s {
 void prompt()
 {
     if (Device.is_chatting)
-        printf("\nChatting with [user1, user2]: ");
+        printf("\nChatting with [%s]: ", Device.joined_chat_receivers);
         //TODO: actually show current chat receivers
     else
         printf("\n>> ");
@@ -294,10 +296,69 @@ void Device_show(char* username)
 
 void Device_chat(char* username)
 {
-    Device.is_chatting = true;
-    DEBUG_PRINT(("chatting with %s", username));
+    UserContact *elem;
+    for (elem = Device.contacts_head; elem != NULL; elem = elem->next) {
+        if (!strcmp(elem->username, username)) {
+            Device.is_chatting = true;
+            Device.joined_chat_receivers = realloc(Device.joined_chat_receivers, strlen(username));
+            strcpy(Device.joined_chat_receivers, username);
+            elem->is_in_chat = true;
+            SCREEN_PRINT(("chat iniziata con %s", username));
+            return;
+        }
+    }
+    SCREEN_PRINT(("impossibile chattare con %s: utente non trovato nella rubrica", username));
 }
 
+void Device_addToChat(char* username)
+{
+    UserContact *elem;
+    bool found = false;
+    char* sep = ", ";
+    void* tmp;
+    size_t len, lensep = strlen(sep), 
+        sz = 0; //stored size
+    bool first = true;
+
+    for (elem = Device.contacts_head; elem != NULL; elem = elem->next) {
+        if (!strcmp(elem->username, username)) {
+            elem->is_in_chat = true;
+            SCREEN_PRINT(("aggiunto %s alla chat", username));
+            found = true;
+        }
+        if (elem->is_in_chat) {
+            len = strlen(elem->username);
+            tmp = realloc(Device.joined_chat_receivers, sz + len + (first ? 0 : lensep) + 1);
+            if (!tmp) {
+                perror ("realloc-tmp: ");
+                exit(1);
+            }
+            Device.joined_chat_receivers = tmp;
+            if (!first) {
+                strcpy(Device.joined_chat_receivers + sz, sep);
+                sz += lensep;
+            }
+            strcpy (Device.joined_chat_receivers + sz, elem->username);
+            first = false;
+            sz += len;
+            /*
+            Device.joined_chat_receivers = realloc(Device.joined_chat_receivers, strlen(username));
+            strcpy(Device.joined_chat_receivers, username);
+            */
+        }
+    }
+    if (!found) {
+        SCREEN_PRINT(("impossibile aggiungere %s alla chat: utente non trovato nella rubrica", username));
+    }
+}
+
+void Device_quitChat()
+{
+    UserContact *elem;
+    for (elem = Device.contacts_head; elem != NULL; elem = elem->next)
+        elem->is_in_chat = false;
+    Device.is_chatting = false;
+}
 void Device_share(char* file_name)
 {
     if (!Device.is_chatting) {
@@ -356,14 +417,14 @@ void Device_handleSTDIN(char* buffer)
         }
     } else { // user is chatting
         if(!strcmp("\\q", tmp)) {
-            Device.is_chatting = false;
+            Device_quitChat();
             // TODO: remove receivers
         } else if (!strcmp("\\u", tmp)) {
             DEBUG_PRINT(("user2\nuser3\n"));
             //TODO: only print users in contacts that are online
         } else if (!strcmp("\\a", tmp)) {
             if (sscanf(buffer, "%s %s", tmp, username) == 2) {
-                DEBUG_PRINT(("added %s to chat", username));
+                Device_addToChat(username);
                 //TODO: check username validity and add as chat receiver
             } else {
                 SCREEN_PRINT(("formato non valido per il comando %s %s (specificare username)", tmp, username));

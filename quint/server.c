@@ -326,7 +326,7 @@ int main(int argv, char *argc[])
                 Server_handleSTDIN, 
                 Server_handleUDP, 
                 Server_handleTCP, 
-                5, 
+                25, 
                 Server_onTimeout);
     return 1;
 }
