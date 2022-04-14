@@ -404,13 +404,16 @@ void Device_send(char* message)
 {
     //TODO:
     int sd, newlen;
-    char* payload = malloc(0);
+    char* payload = NULL; //malloc(0);
     SCREEN_PRINT(("invio messaggio: %s", message));
     sd = net_initTCP(Device.srv_port);
     newlen = strlen(Device.username) + 
                         strlen(Device.joined_chat_receivers) + 
                         strlen(message) + 2;
     DEBUG_PRINT(("newlen = %d (%ld + %ld + %ld + 2)", newlen, strlen(Device.username), strlen(Device.joined_chat_receivers), strlen(message)));
+    DEBUG_PRINT(("username = %s", Device.username));
+    DEBUG_PRINT(("joined_chat_receivers = %s", Device.joined_chat_receivers));
+    DEBUG_PRINT(("message = %s", message));
     payload = realloc(payload, newlen);
     strcpy(payload, Device.username);
     payload = strcat(strcat(strcat(strcat(payload, "\n"), 
@@ -424,8 +427,10 @@ void Device_send(char* message)
 
 void Device_handleSTDIN(char* buffer)
 {
-    char tmp[20], username[USERNAME_LEN], password[USERNAME_LEN], file_name[64];
+    char* tmp, username[USERNAME_LEN], password[USERNAME_LEN], file_name[64];
     int srv_port;
+    tmp = NULL;
+    tmp = realloc(tmp, strlen(buffer));
     sscanf(buffer, "%s", tmp);
     if (!Device.is_chatting) { // main menu
         if(!strcmp("esc", tmp))
@@ -491,6 +496,7 @@ void Device_handleSTDIN(char* buffer)
         }
     }
     SCREEN_PRINT(("                                      ")); // clean line necessary with '\r'
+    free(tmp);
 }
 
 void Device_handleUDP(int sd)

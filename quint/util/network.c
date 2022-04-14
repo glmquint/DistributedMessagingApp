@@ -8,7 +8,7 @@
 #include <netinet/in.h>
 #include "network.h"
 
-#define DEBUG_ON
+#define DEBUG_OFF
 
 #ifdef DEBUG_ON
 # define DEBUG_PRINT(x) printf("  [debug]: "); printf x; printf("\n"); fflush(stdout)

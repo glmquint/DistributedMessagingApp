@@ -110,6 +110,7 @@ void IOMultiplex(int port,
                     else if (i == STDIN) { // input da tastiera
                         // if (fgets(buffer, sizeof buffer, stdin))
                         if (read(STDIN, buffer, sizeof(buffer)))
+                        // while (read(STDIN, buffer, sizeof(buffer))>0)
                             handleSTDIN(buffer);
                     }
                     else if (i == udp_socket) { // messaggio UDP
