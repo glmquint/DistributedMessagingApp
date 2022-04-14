@@ -166,7 +166,7 @@ void Device_updateCachedLogout(char* username)
             int sd = net_initTCP(Device.srv_port);
             if (sd != -1) {
                 // TODO: try refactoring with Device_out()
-                net_sendTCP(sd, "LGOUT", user_ts);
+                net_sendTCP(sd, "LGOUT", user_ts, strlen(user_ts));
                 DEBUG_PRINT(("server aggiornato su l'ultima disconnessione. Eliminazione del file: %s ...", disconnect_file));
                 if (remove(disconnect_file)) {
                     DEBUG_PRINT(("impossibile eliminare il file %s", disconnect_file));
@@ -188,7 +188,7 @@ void Device_out()
     if (sd != -1) {
         char user_ts[64];
         sprintf(user_ts, "%s %d", Device.username, 0);
-        net_sendTCP(sd, "LGOUT", user_ts);
+        net_sendTCP(sd, "LGOUT", user_ts, strlen(user_ts));
         close(sd);
         FD_CLR(sd, &iom.master);
         DEBUG_PRINT(("disconnessione avvennuta con successo"));
@@ -220,14 +220,15 @@ void Device_esc()
 
 void Device_in(int srv_port, char* username, char* password)
 {
-    char *tmp, cmd[REQ_LEN];
+    void *tmp;
+    char cmd[REQ_LEN];
     char credentials[70];
     DEBUG_PRINT(("richiesta di login sul server localhost:%d con credenziali ( %s : %s )", srv_port, username, password));
     int sd = net_initTCP(srv_port);
     if (sd != -1) {
         sprintf(credentials, "%s %s %d", username, password, Device.port);
         Device_updateCachedLogout(username); // se è presente un logout non notificato, inviarlo al server durante la nuova connessione
-        net_sendTCP(sd, "LOGIN", credentials);
+        net_sendTCP(sd, "LOGIN", credentials, strlen(credentials));
         DEBUG_PRINT(("inviata richiesta di login, ora in attesa"));
         net_receiveTCP(sd, cmd, &tmp);
         DEBUG_PRINT(("ricevuta risposta dal server"));
@@ -254,12 +255,13 @@ void Device_in(int srv_port, char* username, char* password)
 
 void Device_signup(char* username, char* password)
 {
-    char *tmp, cmd[REQ_LEN];
+    void *tmp;
+    char cmd[REQ_LEN];
     char credentials[70];
     int sd = net_initTCP(Device.srv_port); // presupponiamo che il server si trovi a questa porta!!
     if (sd != -1) {
         sprintf(credentials, "%s %s %d", username, password, Device.port);
-        net_sendTCP(sd, "SIGUP", credentials);
+        net_sendTCP(sd, "SIGUP", credentials, strlen(credentials));
         DEBUG_PRINT(("inviata richiesta di signup, ora in attesa"));
         net_receiveTCP(sd, cmd, &tmp);
         DEBUG_PRINT(("ricevuta risposta dal server"));
@@ -356,14 +358,14 @@ void Device_showOnlineContacts()
     // DEBUG_PRINT(("user2\nuser3\n"));
     char ans[REQ_LEN];
     UserContact* elem;
-    char* buffer;
+    void* buffer;
     int sd;
     int total = 0, count = 0, unregistered = 0, errors = 0;
     printf("Status contatti ([-]: in attesa, [+]: online, [X]: disconnesso, [?] non registrato)\n");
     for (elem = Device.contacts_head; elem != NULL; elem = elem->next) {
         sd = net_initTCP(Device.srv_port);
         printf(" [-] %s", elem->username);
-        net_sendTCP(sd, "ISONL", elem->username);
+        net_sendTCP(sd, "ISONL", elem->username, strlen(elem->username));
         net_receiveTCP(sd, ans, &buffer);
         if (!strcmp(ans, "ONLIN")){ // user is online
             printf("\r [+] %s\n", elem->username);
@@ -397,9 +399,9 @@ bool Device_resolvePort(UserContact* contact)
 {
     char ans[REQ_LEN];
     int sd;
-    char *buffer;
+    void *buffer;
     sd = net_initTCP(Device.srv_port);
-    net_sendTCP(sd, "ISONL", contact->username);
+    net_sendTCP(sd, "ISONL", contact->username, strlen(contact->username));
     net_receiveTCP(sd, ans, &buffer);
     if (!strcmp(ans, "ONLIN")){ // utente è online
         sscanf(buffer, "%d", &contact->port);
@@ -424,7 +426,7 @@ bool Device_resolvePort(UserContact* contact)
 void Device_share(char* file_name)
 {
     char *dest, *joined_chat_receivers, buffer[1024];
-    int sd;
+    int sd, len;
     FILE *fp;
     UserContact *elem;
     // bool found;
@@ -468,13 +470,13 @@ void Device_share(char* file_name)
                         sd = net_initTCP(elem->port);
                     }
                     DEBUG_PRINT(("├─effettuo l'invio del file adesso sul socket %d", sd));
-                    net_sendTCP(sd, "TITLE", file_name);
+                    net_sendTCP(sd, "SHARE", file_name, strlen(file_name));
                     memset(buffer, '\0', sizeof(buffer));
-                    while((fread(buffer, 1, sizeof(buffer), fp)) > 0) {
-                        DEBUG_PRINT(("sending %s", buffer));
-                        net_sendTCP(sd, "FILE:", buffer);
+                    while((len = fread(buffer, 1, sizeof(buffer), fp)) > 0) {
+                        net_sendTCP(sd, "FILE:", buffer, len);
+                        //DEBUG_PRINT(("chunk sended"));
                     }
-                    net_sendTCP(sd, "|EOF|", "");
+                    net_sendTCP(sd, "|EOF|", "", 0);
                     close(sd);
                     break;
                 }
@@ -505,7 +507,7 @@ void Device_send(char* message)
     payload = strcat(strcat(strcat(strcat(payload, "\n"), 
                                         Device.joined_chat_receivers), "\n"), 
                                         message);
-    net_sendTCP(sd, "|MSG|", payload);
+    net_sendTCP(sd, "|MSG|", payload, strlen(payload));
     free(payload);
     // close(sd);
     // FD_CLR(sd, &iom.master);
@@ -593,14 +595,16 @@ void Device_handleUDP(int sd)
 
 void Device_handleTCP(int sd)
 {
-    char *tmp, cmd[REQ_LEN];
+    void *tmp;
+    char cmd[REQ_LEN];
     FILE* fp;
     char file_name[64];
+    int len;
     DEBUG_PRINT(("Device_handleTCP(%d)", sd));
     net_receiveTCP(sd, cmd, &tmp);
-    DEBUG_PRINT(("ricevuto cmd = %s\npayload = %s", cmd, tmp));
-    if (!strcmp(cmd, "TITLE")){
-        sprintf(file_name, "copy-%s", tmp);
+    DEBUG_PRINT(("ricevuto cmd = %s\npayload = %s", cmd, (char*)tmp));
+    if (!strcmp(cmd, "SHARE")){
+        sprintf(file_name, "copy-%s", (char*)tmp);
         DEBUG_PRINT(("saving to %s", file_name));
         fp = fopen(file_name, "wb");
         if (!fp) {
@@ -609,11 +613,11 @@ void Device_handleTCP(int sd)
         }
         do {
             free(tmp);
-            net_receiveTCP(sd, cmd, &tmp);
+            len = net_receiveTCP(sd, cmd, &tmp);
             if (strcmp(cmd, "FILE:"))
                 break;
-            fwrite(tmp, 1, strlen(tmp), fp);
-            DEBUG_PRINT(("content of size(%ld): %s", strlen(tmp), tmp));
+            fwrite(tmp, 1, len, fp);
+            //DEBUG_PRINT(("content of size(%ld): %s", strlen(tmp), tmp));
         } while(strcmp(cmd, "|EOF|"));
         free(tmp);
         fclose(fp);

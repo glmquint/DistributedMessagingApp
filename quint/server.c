@@ -248,7 +248,8 @@ bool Server_signupCredentials(char* username, char* password, int dev_port)
 
 void Server_handleTCP(int sd)
 {
-    char *tmp, cmd[REQ_LEN];
+    void *tmp;
+    char cmd[REQ_LEN];
     char username[32], password[32];
     char port_str[6];
     int dev_port;
@@ -256,35 +257,36 @@ void Server_handleTCP(int sd)
     UserEntry* elem;
     bool found;
     // DEBUG_PRINT(("ricevuto messaggio TCP su socket: %d", sd));
+    memset(cmd, '\0', REQ_LEN);
     net_receiveTCP(sd, cmd, &tmp);
     // DEBUG_PRINT(("comando ricevuto: %s", cmd));
     if (!strcmp("LOGIN", cmd)) {
-        //DEBUG_PRINT(("corpo di signin: %s", tmp));
+        DEBUG_PRINT(("corpo di login: %s", (char*)tmp));
         if (sscanf(tmp, "%s %s %d", username, password, &dev_port) == 3){
             DEBUG_PRINT(("ricevuta richiesta di login da parte di ( %s : %s : %d )", username, password, dev_port));
             if (Server_checkCredentials(username, password, dev_port)) {
-                net_sendTCP(sd, "OK-OK", "");
+                net_sendTCP(sd, "OK-OK", "", 0);
                 DEBUG_PRINT(("richiesta di login accettata"));
             } else {
-                net_sendTCP(sd, "UKNWN", "");
+                net_sendTCP(sd, "UKNWN", "", 0);
                 DEBUG_PRINT(("rifiutata richiesta di login da utente sconosciuto"));
             }
         } else {
-            net_sendTCP(sd, "ERROR", "");
+            net_sendTCP(sd, "ERROR", "", 0);
             DEBUG_PRINT(("rifiutata richiesta di login non valida"));
         }
     } else if (!strcmp("SIGUP", cmd)) {
         if (sscanf(tmp, "%s %s %d", username, password, &dev_port) == 3){
             DEBUG_PRINT(("ricevuta richiesta di signup da parte di ( %s : %s )", username, password));
             if (Server_signupCredentials(username, password, dev_port)) {
-                net_sendTCP(sd, "OK-OK", "");
+                net_sendTCP(sd, "OK-OK", "", 0);
                 DEBUG_PRINT(("richiesta di signup accettata"));
             } else {
-                net_sendTCP(sd, "KNOWN", "");
+                net_sendTCP(sd, "KNOWN", "", 0);
                 DEBUG_PRINT(("rifiutata richiesta di signup da utente già registrato"));
             }
         } else {
-            net_sendTCP(sd, "ERROR", "");
+            net_sendTCP(sd, "ERROR", "", 0);
             DEBUG_PRINT(("rifiutata richiesta di signup non valida"));
         }
     } else if (!strcmp("LGOUT", cmd)) {
@@ -312,21 +314,21 @@ void Server_handleTCP(int sd)
                 if (!strcmp(elem->user_dest, username)) {
                     if (elem->timestamp_login > elem->timestamp_logout) {
                         sprintf(port_str, "%d", elem->port);
-                        net_sendTCP(sd, "ONLIN", port_str);
+                        net_sendTCP(sd, "ONLIN", port_str, strlen(port_str));
                     } else {
-                        net_sendTCP(sd, "DSCNT", "");
+                        net_sendTCP(sd, "DSCNT", "", 0);
                     }
                     found = true;
                     break;
                 }
             }
             if (!found)
-                net_sendTCP(sd, "UNKWN", "");
+                net_sendTCP(sd, "UNKWN", "", 0);
         } else {
             DEBUG_PRINT(("ricevuta richiesta di conenttività ma nessun username trasmesso"));
         }
     } else if (!strcmp("|MSG|", cmd)) {
-        DEBUG_PRINT(("ricevuta richiesta di inoltro messaggio: %s", tmp));
+        DEBUG_PRINT(("ricevuta richiesta di inoltro messaggio: %s", (char*)tmp));
     } else {
         DEBUG_PRINT(("ricevuto comando remoto non valido: %s", cmd));
     }

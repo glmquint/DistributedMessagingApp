@@ -35,11 +35,13 @@ int net_initTCP(int sv_port)
     return sd;
 }
 
-int net_sendTCP(int sd, char protocol[6], char* buffer)
+int net_sendTCP(int sd, char protocol[6], void* buffer, int len)
 {
-    int len = strlen(buffer);
-    uint32_t lmsg = htonl(len);
+    // int len;
+    uint32_t lmsg;
     int ret; 
+    // len = sizeof(buffer);
+    lmsg = htonl(len);
     DEBUG_PRINT(("send protocol: %s", protocol));
     if (send(sd, (void *)protocol, REQ_LEN, 0) < 0) {
         perror("Errore in fase di invio protocollo");
@@ -51,8 +53,8 @@ int net_sendTCP(int sd, char protocol[6], char* buffer)
         exit(-1);
     }
     if (len > 0) { // non eseguire la send se il messaggio è vuoto
-        DEBUG_PRINT(("send buffer: %s", buffer));
-        if (ret = send(sd, (char *)buffer, len, 0) < len) {
+        DEBUG_PRINT(("send buffer: %s", (char*)buffer));
+        if (ret = send(sd, buffer, len, 0) < len) {
             // DEBUG_PRINT(("inviati %d bytes", ret));
             perror("Errore in fase di invio messaggio");
             exit(-1);
@@ -62,15 +64,17 @@ int net_sendTCP(int sd, char protocol[6], char* buffer)
 }
 
 // viene allocata memoria per buffer! Ricordarsi di usare free
-int net_receiveTCP(int sd, char protocol[6], char** buffer)
+int net_receiveTCP(int sd, char protocol[6], void** buffer)
 {
     int len;
     uint32_t lmsg;
     char error_msg[64];
 
     // DEBUG_PRINT(("  before buffer=%x", *buffer));
+    memset(protocol, '\0', 6);
 
-    if (recv(sd, (void *)protocol, REQ_LEN, 0) < REQ_LEN) {
+    if (recv(sd, (char *)protocol, REQ_LEN, 0) < REQ_LEN) {
+        // DEBUG_PRINT(("received %s", (char*)protocol));
         perror("Errore in fase di ricezione protocollo");
         exit(-1);
     }
@@ -86,12 +90,13 @@ int net_receiveTCP(int sd, char protocol[6], char** buffer)
     if (len > 0) { // se il messaggio è vuoto è inutile fare la recv
         *buffer = malloc(len);
         memset(*buffer, 0, len+1);
+        //memset(*buffer, 0, len);
         if (recv(sd, (void *)*buffer, len, 0) < len) {
             sprintf(error_msg, "Errore in fase di ricezione messaggio (%d)", len);
             perror(error_msg);
             exit(1);
         }
-        DEBUG_PRINT(("received buffer: %s", *buffer));
+        DEBUG_PRINT(("received buffer: %s", (char*)*buffer));
     } else {
         *buffer = (void*)0; // NULL
     }

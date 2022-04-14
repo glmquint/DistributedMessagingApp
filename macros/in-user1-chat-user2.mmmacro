@@ -1,4 +1,6 @@
-﻿2 | X | X | 2000 | Keypress ./dev 5001
+﻿3 | X | X | 2000 | Keypress Enter
+2 | X | X | 2000 | Keypress .
+2 | X | X | 2000 | Keypress /dev 5001
 3 | X | X | 2000 | Keypress Enter
 4 | X | X | 2000 | Keypress in 4242 user1 pass
 5 | X | X | 2000 | Keypress Enter
@@ -11,4 +13,6 @@
 12 | X | X | 2000 | Keypress ciao belli
 13 | X | X | 2000 | Keypress Enter
 14 | X | X | 2000 | Keypress share proemio.txt
+15 | X | X | 2000 | Keypress Enter
+14 | X | X | 2000 | Keypress share image HD.jpg
 15 | X | X | 2000 | Keypress Enter
