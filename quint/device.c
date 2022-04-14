@@ -391,12 +391,61 @@ void Device_quitChat()
         elem->is_in_chat = false;
     Device.is_chatting = false;
 }
-void Device_share(char* file_name)
+
+void Device_share(char* file_names)
 {
-    if (!Device.is_chatting) {
+    char ans[REQ_LEN];
+    char *dest, *buffer, *joined_chat_receivers, *file_name;
+    int sd;
+    UserContact *elem;
+    // bool found;
+    if (!Device.is_chatting) { // utente loggato ma non sta chattando con nessuno (è nel menu principale)
         SCREEN_PRINT(("prima di condividere un file è necessario entrare in una chat tramite il comando: chat <username>"));
-    } else {
-        DEBUG_PRINT(("sharing %s", file_name));
+    } else { // utente è in una chat con un certo numero di partecipanti
+        file_name = strtok(file_names," ");
+        while(file_name) {
+            DEBUG_PRINT(("condivisione file: %s", file_name));
+            joined_chat_receivers = NULL;
+            joined_chat_receivers = realloc(joined_chat_receivers, strlen(Device.joined_chat_receivers));
+            strcpy(joined_chat_receivers, Device.joined_chat_receivers);
+            dest = strtok(joined_chat_receivers, ", ");
+            while(dest) { // per ogni destinatario con cui si sta chattando
+                // found = false;
+                DEBUG_PRINT(("├condivisione con: %s", dest));
+                for (elem = Device.contacts_head; elem != NULL; elem = elem->next) { // cerca contatto in rubrica
+                    if (!strcmp(elem->username, dest)){
+                        // found = true;
+                        if (elem->port == -1) { // non si conosce la porta del destinatario
+                                                // chiediamola al server, se la conosce
+                            DEBUG_PRINT(("| non conosco la porta, chiedo al server"));
+                            sd = net_initTCP(Device.srv_port);
+                            net_sendTCP(sd, "ISONL", elem->username);
+                            net_receiveTCP(sd, ans, &buffer);
+                            if (!strcmp(ans, "ONLIN")){ // utente è online
+                                sscanf(buffer, "%d", &elem->port);
+                                DEBUG_PRINT(("│ └%s è online e si trova alla porta %d", dest, elem->port));
+                            } else if (!strcmp(ans, "DSCNT")) { // utente è disconnesso
+                                DEBUG_PRINT(("│ └%s è disconnesso. Impossibile recapitare il file", dest));
+                                break;
+                            } else if (!strcmp(ans, "UNKWN")) { // utente sconosciuto
+                                DEBUG_PRINT(("│ └%s non registrato col server", dest));
+                                break;
+                            } else {
+                                DEBUG_PRINT(("ricevuta risposta non valida da parte del server"));
+                                break;
+                            }
+                        } else { // si conosce la porta del destinatario
+                            DEBUG_PRINT(("|└%s si trova alla porta %d", elem->username, elem->port));
+                        }
+                        DEBUG_PRINT(("├─effettuo l'invio del file adesso"));
+                        break;
+                    }
+                } // for (elem in contacts)
+                dest = strtok(NULL, ", ");
+            } // while(dest)
+            file_name = strtok(NULL, " ");
+        } // while(file_name)
+        DEBUG_PRINT(("┴"));
     }
 }
 
@@ -462,7 +511,8 @@ void Device_handleSTDIN(char* buffer)
                 SCREEN_PRINT(("formato non valido per il comando %s %s (specificare username)", tmp, username));
             }
         } else if (!strcmp("share", tmp) && Device.is_logged_in) {
-            if (sscanf(buffer, "%s %s", tmp, file_name) == 2) {
+            if (sscanf(buffer, "%s %[^\t\n]", tmp, file_name) == 2) {
+                DEBUG_PRINT(("request to share: %s", file_name));
                 Device_share(file_name);
             } else {
                 SCREEN_PRINT(("formato non valido per il comando %s %s (specificare filename)", tmp, file_name));
@@ -486,7 +536,8 @@ void Device_handleSTDIN(char* buffer)
                 SCREEN_PRINT(("formato non valido per il comando %s %s (specificare username)", tmp, username));
             }
         } else if (!strcmp("share", tmp) && Device.is_logged_in) {
-            if (sscanf(buffer, "%s %s", tmp, file_name) == 2) {
+            if (sscanf(buffer, "%s %[^\t\n]", tmp, file_name) == 2) {
+                DEBUG_PRINT(("request to share: %s", file_name));
                 Device_share(file_name);
             } else {
                 SCREEN_PRINT(("formato non valido per il comando %s %s (speicificare filename)", tmp, file_name));

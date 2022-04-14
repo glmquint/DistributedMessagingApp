@@ -12,6 +12,7 @@
 
 #define STDIN 0
 #define REQ_LEN 6
+#define BUF_LEN 1024
 
 #define DEBUG_OFF
 
@@ -42,7 +43,7 @@ void IOMultiplex(int port,
     int ret, newfd, listener, i, udp_socket;
     socklen_t addrlen;
     struct sockaddr_in my_addr, cl_addr;
-    char buffer[1024];
+    char buffer[BUF_LEN];
     pid_t pid;
     struct timeval tv;
 
@@ -86,6 +87,7 @@ void IOMultiplex(int port,
     tv.tv_usec = 0;
 
     while (1) {
+        memset(buffer, '\0', BUF_LEN);
         iom.read_fds = iom.master;
         if (timeout_sec != 0) {
             i = select(iom.fdmax + 1, &(iom.read_fds), NULL, NULL, &tv);
@@ -109,8 +111,7 @@ void IOMultiplex(int port,
                     }
                     else if (i == STDIN) { // input da tastiera
                         // if (fgets(buffer, sizeof buffer, stdin))
-                        if (read(STDIN, buffer, sizeof(buffer)))
-                        // while (read(STDIN, buffer, sizeof(buffer))>0)
+                        if (read(STDIN, buffer, BUF_LEN))
                             handleSTDIN(buffer);
                     }
                     else if (i == udp_socket) { // messaggio UDP
