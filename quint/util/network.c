@@ -38,7 +38,7 @@ int net_initTCP(int sv_port)
 int net_sendTCP(int sd, char protocol[6], char* buffer)
 {
     int len = strlen(buffer);
-    uint16_t lmsg = htons(len);
+    uint32_t lmsg = htonl(len);
     int ret; 
     DEBUG_PRINT(("send protocol: %s", protocol));
     if (send(sd, (void *)protocol, REQ_LEN, 0) < 0) {
@@ -46,13 +46,14 @@ int net_sendTCP(int sd, char protocol[6], char* buffer)
         exit(-1);
     }
     DEBUG_PRINT(("send buffer length: %d", len));
-    if (ret = send(sd, (void *)&lmsg, sizeof(uint16_t), 0) < 0) {
+    if (ret = send(sd, (void *)&lmsg, sizeof(uint32_t), 0) < 0) {
         perror("Errore in fase di invio lunghezza messaggio");
         exit(-1);
     }
     if (len > 0) { // non eseguire la send se il messaggio è vuoto
         DEBUG_PRINT(("send buffer: %s", buffer));
         if (ret = send(sd, (char *)buffer, len, 0) < len) {
+            // DEBUG_PRINT(("inviati %d bytes", ret));
             perror("Errore in fase di invio messaggio");
             exit(-1);
         }
@@ -61,10 +62,11 @@ int net_sendTCP(int sd, char protocol[6], char* buffer)
 }
 
 // viene allocata memoria per buffer! Ricordarsi di usare free
-void net_receiveTCP(int sd, char protocol[6], char** buffer)
+int net_receiveTCP(int sd, char protocol[6], char** buffer)
 {
     int len;
-    uint16_t lmsg;
+    uint32_t lmsg;
+    char error_msg[64];
 
     // DEBUG_PRINT(("  before buffer=%x", *buffer));
 
@@ -74,18 +76,17 @@ void net_receiveTCP(int sd, char protocol[6], char** buffer)
     }
     DEBUG_PRINT(("received protocol: %s", protocol));
 
-    if (recv(sd, (void *)&lmsg, sizeof(uint16_t), 0) < 0) {
+    if (recv(sd, (void *)&lmsg, sizeof(uint32_t), 0) < 0) {
         perror("Errore in fase di ricezione lunghezza messaggio");
         exit(-1);
     }
-    len = ntohs(lmsg);
+    len = ntohl(lmsg);
     DEBUG_PRINT(("received buffer length: %d", len));
 
     if (len > 0) { // se il messaggio è vuoto è inutile fare la recv
         *buffer = malloc(len);
         memset(*buffer, 0, len+1);
         if (recv(sd, (void *)*buffer, len, 0) < len) {
-            char error_msg[64];
             sprintf(error_msg, "Errore in fase di ricezione messaggio (%d)", len);
             perror(error_msg);
             exit(1);
@@ -94,6 +95,7 @@ void net_receiveTCP(int sd, char protocol[6], char** buffer)
     } else {
         *buffer = (void*)0; // NULL
     }
+    return len;
     // DEBUG_PRINT(("  after buffer=%x", *buffer));
 }
 

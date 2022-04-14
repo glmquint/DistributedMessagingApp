@@ -3,6 +3,7 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include <stdbool.h>
+#include <sys/stat.h>
 #include "util/IOMultiplex.h"
 #include "util/cmd.h"
 #include "util/network.h"
@@ -381,7 +382,7 @@ void Device_showOnlineContacts()
     }
     SCREEN_PRINT(("%d utenti online su %d in rubrica (%d utenti non registrati, %d errori)", count, total, unregistered, errors));
     close(sd);
-    FD_CLR(sd, &iom.master);
+    // FD_CLR(sd, &iom.master);
 }
 
 void Device_quitChat()
@@ -392,60 +393,96 @@ void Device_quitChat()
     Device.is_chatting = false;
 }
 
-void Device_share(char* file_names)
+bool Device_resolvePort(UserContact* contact)
 {
     char ans[REQ_LEN];
-    char *dest, *buffer, *joined_chat_receivers, *file_name;
     int sd;
+    char *buffer;
+    sd = net_initTCP(Device.srv_port);
+    net_sendTCP(sd, "ISONL", contact->username);
+    net_receiveTCP(sd, ans, &buffer);
+    if (!strcmp(ans, "ONLIN")){ // utente è online
+        sscanf(buffer, "%d", &contact->port);
+        DEBUG_PRINT(("│ └%s è online e si trova alla porta %d", contact->username, contact->port));
+    } else if (!strcmp(ans, "DSCNT")) { // utente è disconnesso
+        contact->port = -1;
+        DEBUG_PRINT(("│ └%s è disconnesso. Impossibile recapitare il file", contact->username));
+        return false;
+    } else if (!strcmp(ans, "UNKWN")) { // utente sconosciuto
+        contact->port = -1;
+        DEBUG_PRINT(("│ └%s non registrato con il server", contact->username));
+        return false;
+    } else {
+        contact->port = -1;
+        DEBUG_PRINT(("ricevuta risposta non valida da parte del server"));
+        return false;
+    }
+    close(sd);
+    return true;
+}
+
+void Device_share(char* file_name)
+{
+    char *dest, *joined_chat_receivers, buffer[1024];
+    int sd;
+    FILE *fp;
     UserContact *elem;
     // bool found;
     if (!Device.is_chatting) { // utente loggato ma non sta chattando con nessuno (è nel menu principale)
         SCREEN_PRINT(("prima di condividere un file è necessario entrare in una chat tramite il comando: chat <username>"));
     } else { // utente è in una chat con un certo numero di partecipanti
-        file_name = strtok(file_names," ");
-        while(file_name) {
-            DEBUG_PRINT(("condivisione file: %s", file_name));
-            joined_chat_receivers = NULL;
-            joined_chat_receivers = realloc(joined_chat_receivers, strlen(Device.joined_chat_receivers));
-            strcpy(joined_chat_receivers, Device.joined_chat_receivers);
-            dest = strtok(joined_chat_receivers, ", ");
-            while(dest) { // per ogni destinatario con cui si sta chattando
-                // found = false;
-                DEBUG_PRINT(("├condivisione con: %s", dest));
-                for (elem = Device.contacts_head; elem != NULL; elem = elem->next) { // cerca contatto in rubrica
-                    if (!strcmp(elem->username, dest)){
-                        // found = true;
-                        if (elem->port == -1) { // non si conosce la porta del destinatario
-                                                // chiediamola al server, se la conosce
-                            DEBUG_PRINT(("| non conosco la porta, chiedo al server"));
-                            sd = net_initTCP(Device.srv_port);
-                            net_sendTCP(sd, "ISONL", elem->username);
-                            net_receiveTCP(sd, ans, &buffer);
-                            if (!strcmp(ans, "ONLIN")){ // utente è online
-                                sscanf(buffer, "%d", &elem->port);
-                                DEBUG_PRINT(("│ └%s è online e si trova alla porta %d", dest, elem->port));
-                            } else if (!strcmp(ans, "DSCNT")) { // utente è disconnesso
-                                DEBUG_PRINT(("│ └%s è disconnesso. Impossibile recapitare il file", dest));
-                                break;
-                            } else if (!strcmp(ans, "UNKWN")) { // utente sconosciuto
-                                DEBUG_PRINT(("│ └%s non registrato col server", dest));
-                                break;
-                            } else {
-                                DEBUG_PRINT(("ricevuta risposta non valida da parte del server"));
-                                break;
-                            }
-                        } else { // si conosce la porta del destinatario
-                            DEBUG_PRINT(("|└%s si trova alla porta %d", elem->username, elem->port));
-                        }
-                        DEBUG_PRINT(("├─effettuo l'invio del file adesso"));
-                        break;
+        fp = fopen(file_name, "rb");
+        if (!fp){
+            perror("impossibile aprire il file: ");
+            return;
+        }
+        DEBUG_PRINT(("condivisione file: %s", file_name));
+        joined_chat_receivers = NULL;
+        joined_chat_receivers = realloc(joined_chat_receivers, strlen(Device.joined_chat_receivers));
+        strcpy(joined_chat_receivers, Device.joined_chat_receivers);
+        dest = strtok(joined_chat_receivers, ", ");
+        while(dest) { // per ogni destinatario con cui si sta chattando
+            // found = false;
+            DEBUG_PRINT(("├condivisione con: %s", dest));
+            for (elem = Device.contacts_head; elem != NULL; elem = elem->next) { // cerca contatto in rubrica
+                if (!strcmp(elem->username, dest)){
+                    // found = true;
+                    if (elem->port == -1) { // non si conosce la porta del destinatario
+                                            // chiediamola al server, se la conosce
+                        DEBUG_PRINT(("| non conosco la porta, chiedo al server"));
+                        if (!Device_resolvePort(elem))
+                            break;
+                    } else { // si conosce la porta del destinatario
+                        DEBUG_PRINT(("|└%s si trova alla porta %d", elem->username, elem->port));
                     }
-                } // for (elem in contacts)
-                dest = strtok(NULL, ", ");
-            } // while(dest)
-            file_name = strtok(NULL, " ");
-        } // while(file_name)
+
+                    // non stiamo controllando che il destinatario sia proprio dest
+                    // ma solo che qualcuno risponda su questa porta.
+                    // Se la porta salvata non viene aggiornata e su quella stessa porta
+                    // si connette un altro utente, riceverà lui il file
+                    sd = net_initTCP(elem->port);
+                    if (sd == -1) {
+                        if (!Device_resolvePort(elem))
+                            break;
+                        close(sd);
+                        sd = net_initTCP(elem->port);
+                    }
+                    DEBUG_PRINT(("├─effettuo l'invio del file adesso sul socket %d", sd));
+                    net_sendTCP(sd, "TITLE", file_name);
+                    memset(buffer, '\0', sizeof(buffer));
+                    while((fread(buffer, 1, sizeof(buffer), fp)) > 0) {
+                        DEBUG_PRINT(("sending %s", buffer));
+                        net_sendTCP(sd, "FILE:", buffer);
+                    }
+                    net_sendTCP(sd, "|EOF|", "");
+                    close(sd);
+                    break;
+                }
+            } // for (elem in contacts)
+            dest = strtok(NULL, ", ");
+        } // while(dest)
         DEBUG_PRINT(("┴"));
+        fclose(fp);
     }
 }
 
@@ -512,7 +549,6 @@ void Device_handleSTDIN(char* buffer)
             }
         } else if (!strcmp("share", tmp) && Device.is_logged_in) {
             if (sscanf(buffer, "%s %[^\t\n]", tmp, file_name) == 2) {
-                DEBUG_PRINT(("request to share: %s", file_name));
                 Device_share(file_name);
             } else {
                 SCREEN_PRINT(("formato non valido per il comando %s %s (specificare filename)", tmp, file_name));
@@ -555,10 +591,35 @@ void Device_handleUDP(int sd)
     net_answerHeartBeat(sd, Device.port);
 }
 
-//void Device_handleTCP(char* cmd, int sd)
 void Device_handleTCP(int sd)
 {
+    char *tmp, cmd[REQ_LEN];
+    FILE* fp;
+    char file_name[64];
     DEBUG_PRINT(("Device_handleTCP(%d)", sd));
+    net_receiveTCP(sd, cmd, &tmp);
+    DEBUG_PRINT(("ricevuto cmd = %s\npayload = %s", cmd, tmp));
+    if (!strcmp(cmd, "TITLE")){
+        sprintf(file_name, "copy-%s", tmp);
+        DEBUG_PRINT(("saving to %s", file_name));
+        fp = fopen(file_name, "wb");
+        if (!fp) {
+            perror("errore nella creazione del file");
+            return;
+        }
+        do {
+            free(tmp);
+            net_receiveTCP(sd, cmd, &tmp);
+            if (strcmp(cmd, "FILE:"))
+                break;
+            fwrite(tmp, 1, strlen(tmp), fp);
+            DEBUG_PRINT(("content of size(%ld): %s", strlen(tmp), tmp));
+        } while(strcmp(cmd, "|EOF|"));
+        free(tmp);
+        fclose(fp);
+    }
+    close(sd);
+    FD_ZERO(&iom.master);
 }
 
 int main(int argv, char *argc[]) 
