@@ -288,8 +288,46 @@ void Device_signup(char* username, char* password)
 
 void Device_hanging()
 {
-    //TODO
-    DEBUG_PRINT(("showing users with pending messages: ..."));
+    int sd;
+    void *tmp;
+    char cmd[REQ_LEN];
+    int count, recv_count;
+    bool at_least_one;
+    //DEBUG_PRINT(("showing users with pending messages: ..."));
+    sd = net_initTCP(Device.srv_port);
+    if(sd == -1){
+        perror("impossibile contattare il server: ");
+        return;
+    }
+    count = 0;
+    at_least_one = false;
+    net_sendTCP(sd, "HANG?", Device.username, strlen(Device.username));
+    net_receiveTCP(sd, cmd, &tmp);
+    while(!strcmp(cmd, "HUSER")) {
+        if (!at_least_one) {
+            SCREEN_PRINT(("ci sono dei messaggi non letti da questi utenti:"));
+            at_least_one = true;
+        }
+        SCREEN_PRINT(("-> %s", (char*)tmp));
+        // free(tmp);
+        net_receiveTCP(sd, cmd, &tmp);
+        count++;
+    } 
+    //net_receiveTCP(sd, cmd, &tmp);
+    if(strcmp(cmd, "OK-OK")){
+        DEBUG_PRINT(("errore nella risposta del server"));
+        return;
+    }
+    if (!at_least_one){
+        SCREEN_PRINT(("non ci sono messaggi non letti sul server"));
+    }
+    sscanf(tmp, "%d", &recv_count);
+    if (count == recv_count) { // questo controllo dovrebbe essere inutile con TCP. Rimane comunque un semplice double-check
+        DEBUG_PRINT(("ricevuti %s utenti in attesa", (char*)tmp));
+    } else {
+        DEBUG_PRINT(("ricevuto un numero diverso di utenti rispetto a quanto annunciato (%d invece che %d)", count, recv_count));
+    }
+    free(tmp);
 }
 
 void Device_show(char* username)
@@ -300,14 +338,30 @@ void Device_show(char* username)
 
 void Device_chat(char* username)
 {
+    FILE* fp;
+    char s;
     UserContact *elem;
+    char chat_file[70];
     for (elem = Device.contacts_head; elem != NULL; elem = elem->next) {
         if (!strcmp(elem->username, username)) {
+            SCREEN_PRINT(("=== chat iniziata con %s ===", username));
             Device.is_chatting = true;
             Device.joined_chat_receivers = realloc(Device.joined_chat_receivers, strlen(username));
             strcpy(Device.joined_chat_receivers, username);
             elem->is_in_chat = true;
-            SCREEN_PRINT(("chat iniziata con %s", username));
+            sprintf(chat_file, "./%s/%s", Device.username, elem->username);
+            DEBUG_PRINT(("apertura del file: %s", chat_file));
+            fp = fopen(chat_file, "r");
+            if (fp == NULL) {
+                SCREEN_PRINT(("nessun messaggio in questa chat"));
+            } else{
+                while((s=fgetc(fp))!= EOF){
+                    printf("%c", s);
+                }
+                printf("\n");
+                fclose(fp);
+            }
+
             return;
         }
     }
@@ -402,8 +456,26 @@ void Device_showOnlineContacts()
     int total = 0, count = 0, unregistered = 0, errors = 0;
     printf("Status contatti ([-]: in attesa, [+]: online, [X]: disconnesso, [?] non registrato)\n");
     for (elem = Device.contacts_head; elem != NULL; elem = elem->next) {
-        sd = net_initTCP(Device.srv_port);
+        total++;
         printf(" [-] %s", elem->username);
+        sd = net_initTCP(Device.srv_port);
+        if(sd == -1){
+            DEBUG_PRINT(("impossibile connettersi al server. Tentativo di connessione manuale con il device"));
+            if(elem->port == -1){
+                printf("\r [X] %s\n", elem->username);
+                continue;
+            }
+            sd = net_initTCP(elem->port);
+            if (sd == -1){
+                printf("\r [X] %s\n", elem->username);
+            }else{
+                printf("\r [+] %s\n", elem->username);
+                net_sendTCP(sd, "IGNOR", "", 0);
+                count++;
+                close(sd);
+            }
+            continue;
+        }
         net_sendTCP(sd, "ISONL", elem->username, strlen(elem->username));
         net_receiveTCP(sd, ans, &buffer);
         if (!strcmp(ans, "ONLIN")){ // user is online
@@ -421,10 +493,9 @@ void Device_showOnlineContacts()
             DEBUG_PRINT(("ricevuta risposta non valida da parte del server"));
             errors++;
         }
-        total++;
+        close(sd);
     }
     SCREEN_PRINT(("%d utenti online su %d in rubrica (%d utenti non registrati, %d errori)", count, total, unregistered, errors));
-    close(sd);
     // FD_CLR(sd, &iom.master);
 }
 
@@ -539,22 +610,33 @@ void Device_send(char* message)
     char* payload, *joined_chat_receivers; //malloc(0);
     char* dest;
     char cmd[REQ_LEN];
+    FILE* fp;
     UserContact* elem;
+    char chat_file[64];
     payload = NULL;
-    SCREEN_PRINT(("invio messaggio: %s", message));
+    DEBUG_PRINT(("invio messaggio: %s", message));
 
+    /*
     newlen = strlen(Device.username) + 
                         strlen(Device.joined_chat_receivers) + 
                         strlen(message) + 2;
+                        */
+    newlen = strlen(Device.username) + 
+                        strlen(Device.joined_chat_receivers) + 
+                        strlen(message) + strlen("()<-(): ");
     // DEBUG_PRINT(("newlen = %d (%ld + %ld + %ld + 2)", newlen, strlen(Device.username), strlen(Device.joined_chat_receivers), strlen(message)));
     DEBUG_PRINT(("username = %s", Device.username));
     DEBUG_PRINT(("joined_chat_receivers = %s", Device.joined_chat_receivers));
     DEBUG_PRINT(("message = %s", message));
     payload = realloc(payload, newlen);
+    memset(payload, '\0', newlen);
+    /*
     strcpy(payload, Device.username);
     payload = strcat(strcat(strcat(strcat(payload, "\n"), 
                                         Device.joined_chat_receivers), "\n"), 
                                         message);
+    */
+    sprintf(payload, "(%s)<-(%s): %s", Device.joined_chat_receivers, Device.username, message);
 
     sd = net_initTCP(Device.srv_port);
     if (sd == -1) { // impossibile contattare il server
@@ -619,6 +701,29 @@ void Device_send(char* message)
     } else {
         net_sendTCP(sd, "|MSG|", payload, strlen(payload));
     }
+    joined_chat_receivers = NULL;
+    joined_chat_receivers = realloc(joined_chat_receivers, strlen(Device.joined_chat_receivers));
+    strcpy(joined_chat_receivers, Device.joined_chat_receivers);
+    DEBUG_PRINT(("reached here"));
+    sprintf(payload, "(%s)->(%s): %s", Device.username, Device.joined_chat_receivers, message);
+    SCREEN_PRINT(("%s", payload));
+    dest = strtok(joined_chat_receivers, ", ");
+    //FIXME: refactor with send file
+    while(dest) { // per ogni destinatario con cui si sta chattando
+        sprintf(chat_file, "./%s/%s", Device.username, dest);
+        DEBUG_PRINT(("saving %s to %s", payload, chat_file));
+        fp = fopen(chat_file, "a");
+        if (fp == NULL) {
+            DEBUG_PRINT(("Impossibile aprire file %s", chat_file));
+        } else {
+            fprintf(fp, "%s", (char*)payload);
+            //fprintf(fp, "===================");
+            fclose(fp);
+        }
+        DEBUG_PRINT(("messaggio salvato in %s", chat_file));
+        dest = strtok(NULL, ", ");
+    }
+
     free(payload);
     close(sd); 
     // FD_CLR(sd, &iom.master);
@@ -699,6 +804,37 @@ void Device_handleSTDIN(char* buffer)
     free(tmp);
 }
 
+void Device_saveMsg(char* buffer)
+{
+    char sender[32];
+    char receivers[128];
+    char msg[1024];
+    char chat_file[70];
+    FILE* fp;
+
+    memset(sender, '\0', 32);
+    memset(receivers, '\0', 128);
+    memset(msg, '\0', 1024);
+    sscanf(buffer, "(%[^)])<-(%[^)]): %[^\n]", receivers, sender, msg);
+
+    sprintf(chat_file, "./%s/%s", Device.username, sender);
+    DEBUG_PRINT(("saving %s to %s", buffer, chat_file));
+    fp = fopen(chat_file, "a");
+    if (fp == NULL) {
+        DEBUG_PRINT(("Impossibile appendere sul file %s", chat_file));
+        fp = fopen(chat_file, "w");
+        if (fp == NULL) {
+            DEBUG_PRINT(("Impossibile aprire file %s", chat_file));
+            return;
+        }
+    }
+    fprintf(fp, "%s", buffer);
+    //fprintf(fp, "===================");
+    fclose(fp);
+    DEBUG_PRINT(("messaggio salvato in %s", chat_file));
+
+}
+
 void Device_handleUDP(int sd)
 {
     net_answerHeartBeat(sd, Device.port);
@@ -713,7 +849,7 @@ void Device_handleTCP(int sd)
     int len;
     // DEBUG_PRINT(("Device_handleTCP(%d)", sd));
     net_receiveTCP(sd, cmd, &tmp);
-    DEBUG_PRINT(("ricevuto cmd = %s\npayload = %s", cmd, (char*)tmp));
+    // DEBUG_PRINT(("ricevuto cmd = %s\npayload = %s", cmd, (char*)tmp));
     if (!strcmp(cmd, "SHARE")){
         sprintf(file_name, "./%s/copy-%s", Device.username, (char*)tmp);
         DEBUG_PRINT(("saving to %s", file_name));
@@ -733,6 +869,7 @@ void Device_handleTCP(int sd)
         fclose(fp);
     } else if (!strcmp(cmd, "|MSG|")){
         DEBUG_PRINT(("ricevuto messaggio: %s", (char*)tmp));
+        Device_saveMsg((char*)tmp);
         net_sendTCP(sd, "OK-OK", "", 0);
     }
     free(tmp);

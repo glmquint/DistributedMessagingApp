@@ -74,7 +74,7 @@ int net_receiveTCP(int sd, char protocol[6], void** buffer)
     memset(protocol, '\0', 6);
 
     if (recv(sd, (char *)protocol, REQ_LEN, 0) < REQ_LEN) {
-        // DEBUG_PRINT(("received %s", (char*)protocol));
+        DEBUG_PRINT((">received %s on %d", (char*)protocol, sd));
         perror("Errore in fase di ricezione protocollo");
         exit(-1);
     }

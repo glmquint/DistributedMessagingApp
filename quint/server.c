@@ -5,6 +5,7 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include <stdbool.h>
+#include <dirent.h>
 #include "util/IOMultiplex.h"
 #include "util/cmd.h"
 #include "util/network.h"
@@ -13,6 +14,7 @@
 #define CMDLIST_LEN 3
 #define MAX_CHANCES 3
 #define REQ_LEN 6
+#define TIMEOUT 1
 
 #define DEBUG_ON
 
@@ -246,16 +248,91 @@ bool Server_signupCredentials(char* username, char* password, int dev_port)
     // return strcmp(username, "pippo"); // && strcmp(password, "P!pp0");
 }
 
+void Server_hangMsg(char* dest, char* sender, void* buffer)
+{
+    char hanging_file[64];
+    FILE* fp;
+    sprintf(hanging_file, "./hanging/%s/%s", dest, sender);
+    fp = fopen(hanging_file, "a");
+    if (fp == NULL) {
+        DEBUG_PRINT(("Impossibile aprire file %s", hanging_file));
+    } else {
+        fprintf(fp, "%s", (char*)buffer);
+        // fprintf(fp, "===================");
+    }
+    DEBUG_PRINT(("messaggio salvato in %s", hanging_file));
+    fclose(fp);
+}
+
 void Server_forwardMsg(void* buffer)
 {
+    // TODO:
     char sender[32];
     char receivers[128];
     char msg[1024];
+    char* dest;
+    int sd;
+    UserEntry* elem;
     memset(sender, '\0', 32);
     memset(receivers, '\0', 128);
     memset(msg, '\0', 1024);
-    sscanf(buffer, "%[^\n]\n%[^\n]\n%[^\n]", sender, receivers, msg);
+    DEBUG_PRINT(("forwarding %s", (char*)buffer));
+    //sscanf(buffer, "%[^\n]\n%[^\n]\n%[^\n]", sender, receivers, msg);
+    sscanf(buffer, "(%[^)])<-(%[^)]): %[^\n]", receivers, sender, msg);
     DEBUG_PRINT(("sender: %s\n receivers: %s\n msg: %s", sender, receivers, msg));
+    Server_loadUserEntry(); // non se ne modifica il contenuto, quindi non c'è bisogno di chiamare saveUserEntry() alla fine
+    dest = strtok(receivers, ", ");
+    while(dest){
+        for (elem = Server.user_register_head; elem != NULL; elem = elem->next) {
+            if (!strcmp(elem->user_dest, dest)) {
+                if (elem->port == -1)
+                    Server_hangMsg(dest, sender, buffer);
+                else{
+                    sd = net_initTCP(elem->port);
+                    if (sd == -1){
+                        sleep(3*TIMEOUT); // askHeartBeat si occuperà di assicurare se dest sia raggiungibile
+                        sd = net_initTCP(elem->port);
+                        if (sd == -1)
+                            Server_hangMsg(dest, sender, buffer);
+                    } else {
+                        net_sendTCP(sd, "|MSG|", buffer, strlen(buffer));
+                        DEBUG_PRINT(("messaggio trasmesso a %s", dest));
+                    }
+                }
+            }
+        }   
+        dest = strtok(NULL, ", ");
+    }
+}
+
+void Server_hanging(int sd, char* user)
+{
+    struct dirent *de;
+    char userdir[64];
+    DIR *dr;
+    char* hanging_users;
+    int count;
+    char count_str[4];
+    sprintf(userdir, "./hanging/%s/", user);
+    DEBUG_PRINT(("apertura della directory: %s", userdir));
+    dr = opendir(userdir);
+    if (dr == NULL) {
+        perror("impossibile aprire la directory");
+        net_sendTCP(sd, "ERROR", "", 0);
+        return;
+    }
+    count = 0;
+    while((de = readdir(dr)) != NULL){
+        if(!strcmp(de->d_name, ".") || !strcmp(de->d_name, ".."))
+            continue;
+        DEBUG_PRINT(("trovato file: %s\n", de->d_name));
+        net_sendTCP(sd, "HUSER", de->d_name, strlen(de->d_name));
+        count++;
+    }
+    sprintf(count_str, "%d", count);
+
+    net_sendTCP(sd, "OK-OK", count_str, strlen(count_str));
+    closedir(dr);
 }
 
 void Server_handleTCP(int sd)
@@ -342,6 +419,8 @@ void Server_handleTCP(int sd)
     } else if (!strcmp("|MSG|", cmd)) {
         //DEBUG_PRINT(("ricevuta richiesta di inoltro messaggio: %s", (char*)tmp));
         Server_forwardMsg(tmp);
+    } else if (!strcmp("HANG?", cmd)) {
+        Server_hanging(sd, (char*)tmp);
     } else {
         DEBUG_PRINT(("ricevuto comando remoto non valido: %s", cmd));
     }
@@ -360,7 +439,7 @@ int main(int argv, char *argc[])
                 Server_handleSTDIN, 
                 Server_handleUDP, 
                 Server_handleTCP, 
-                1, 
+                TIMEOUT, 
                 Server_onTimeout);
     return 1;
 }
