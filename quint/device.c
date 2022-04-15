@@ -69,7 +69,7 @@ struct Device_s {
     char username[USERNAME_LEN];
     int port;
     int srv_port;
-    char* joined_chat_receivers;
+    char* joined_chat_receivers; // insieme di utenti (divisi da ", ") destinatari della chat
     Cmd available_cmds[CMDLIST_LEN]; // lista dei comandi invacabili dal menu
     UserContact* contacts_head; // lista dei contatti nella rubrica dell'utente loggato
     UserContact* contacts_tail;
@@ -510,10 +510,12 @@ void Device_quitChat()
 void Device_share(char* file_name)
 {
     char *dest, *joined_chat_receivers, buffer[1024];
-    int sd, len, pid;//, num_dest, i; 
+    int sd, len, pid, newlen;//, num_dest, i; 
     long int size, sended;
     FILE *fp;
+    char chat_file[64];
     UserContact *elem;
+    char *payload;
     // bool found;
     if (!Device.is_chatting) { // utente loggato ma non sta chattando con nessuno (è nel menu principale)
         SCREEN_PRINT(("prima di condividere un file è necessario entrare in una chat tramite il comando: chat <username>"));
@@ -586,11 +588,41 @@ void Device_share(char* file_name)
                         }
                         if (sended != size)
                             perror("il file non è stato inviato correttamente: ");
-                        net_sendTCP(sd, "|EOF|", "", 0);
-                        SCREEN_PRINT(("\n"));
+                        //
+                        payload = NULL;
+                        newlen = strlen(Device.username) + 
+                                            strlen(Device.joined_chat_receivers) + 
+                                            strlen(file_name) + strlen("()<-() file condiviso: \n");
+                        payload = realloc(payload, newlen);
+                        memset(payload, '\0', newlen);
+                        sprintf(payload, "(%s)<-(%s) file condiviso: %s\n", Device.joined_chat_receivers, Device.username, file_name);
+                        //
+                        net_sendTCP(sd, "|EOF|", payload, newlen);
                         close(sd);
                         fclose(fp); /**/
-                        exit(0);
+                        ///
+                        payload = NULL;
+                        newlen = strlen(Device.username) + 
+                                            strlen(Device.joined_chat_receivers) + 
+                                            strlen(file_name) + strlen("()<-() file condiviso: \n");
+                        payload = realloc(payload, newlen);
+                        memset(payload, '\0', newlen);
+                        sprintf(payload, "(%s)->(%s) file condiviso: %s\n", Device.username, Device.joined_chat_receivers, file_name);
+                        SCREEN_PRINT(("%s", payload));
+                        sprintf(chat_file, "./%s/%s", Device.username, dest);
+                        DEBUG_PRINT(("saving %s to %s", payload, chat_file));
+                        fp = fopen(chat_file, "a");
+                        if (fp == NULL) {
+                            DEBUG_PRINT(("Impossibile aprire file %s", chat_file));
+                        } else {
+                            fprintf(fp, "%s", (char*)payload);
+                            //fprintf(fp, "===================");
+                            fclose(fp);
+                        }
+                        DEBUG_PRINT(("messaggio salvato in %s", chat_file));
+                        dest = strtok(NULL, ", ");
+                        ///
+                        // exit(0); //FIXME: non dovrebbe esserci questo exit!!
                         //break;
                     }
                 }
@@ -599,6 +631,7 @@ void Device_share(char* file_name)
             // num_dest++;
         } // while(dest)
         DEBUG_PRINT(("┴"));
+        
         //fclose(fp);
     }
 }
@@ -866,6 +899,7 @@ void Device_handleTCP(int sd)
             fwrite(tmp, 1, len, fp);
             //DEBUG_PRINT(("content of size(%ld): %s", strlen(tmp), tmp));
         } while(strcmp(cmd, "|EOF|"));
+        Device_saveMsg((char*)tmp);
         fclose(fp);
     } else if (!strcmp(cmd, "|MSG|")){
         DEBUG_PRINT(("ricevuto messaggio: %s", (char*)tmp));
