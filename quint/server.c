@@ -246,6 +246,18 @@ bool Server_signupCredentials(char* username, char* password, int dev_port)
     // return strcmp(username, "pippo"); // && strcmp(password, "P!pp0");
 }
 
+void Server_forwardMsg(void* buffer)
+{
+    char sender[32];
+    char receivers[128];
+    char msg[1024];
+    memset(sender, '\0', 32);
+    memset(receivers, '\0', 128);
+    memset(msg, '\0', 1024);
+    sscanf(buffer, "%[^\n]\n%[^\n]\n%[^\n]", sender, receivers, msg);
+    DEBUG_PRINT(("sender: %s\n receivers: %s\n msg: %s", sender, receivers, msg));
+}
+
 void Server_handleTCP(int sd)
 {
     void *tmp;
@@ -328,7 +340,8 @@ void Server_handleTCP(int sd)
             DEBUG_PRINT(("ricevuta richiesta di conenttività ma nessun username trasmesso"));
         }
     } else if (!strcmp("|MSG|", cmd)) {
-        DEBUG_PRINT(("ricevuta richiesta di inoltro messaggio: %s", (char*)tmp));
+        //DEBUG_PRINT(("ricevuta richiesta di inoltro messaggio: %s", (char*)tmp));
+        Server_forwardMsg(tmp);
     } else {
         DEBUG_PRINT(("ricevuto comando remoto non valido: %s", cmd));
     }
