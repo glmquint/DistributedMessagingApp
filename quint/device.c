@@ -108,13 +108,13 @@ void Device_init(int argv, char *argc[])
 void Device_loadContacts()
 {
     FILE* fp; // file descriptor della rubrica dell'utente (se presente nel current path) nella forma ".<username>-contacts"
-    char contacts_file[USERNAME_LEN + 11]; // filename della rubrica (len(username) + len(".-contacts") + len('\0'))
+    char contacts_file[USERNAME_LEN + 12]; // filename della rubrica (strlen(username) + strlen(".//contacts") + strlen('\0'))
     char* line = NULL;
     size_t len = 0;
     ssize_t read;
     char this_user[USERNAME_LEN];
 
-    sprintf(contacts_file, ".%s-contacts", Device.username);
+    sprintf(contacts_file, "./%s/contacts", Device.username);
     fp = fopen(contacts_file, "r");
     if (fp != NULL) {
         DEBUG_PRINT(("file rubrica trovato: %s", contacts_file));
@@ -155,7 +155,7 @@ void Device_updateCachedLogout(char* username)
 {
     FILE* fp;
     char disconnect_file[50];
-    sprintf(disconnect_file, ".%s-disconnect", username);
+    sprintf(disconnect_file, "./%s/disconnect", username);
     fp = fopen(disconnect_file, "r");
     if (fp != NULL) {
         DEBUG_PRINT(("file di disconnessione pendente trovato: %s", disconnect_file));
@@ -197,7 +197,7 @@ void Device_out()
         // salvare l'istante di disconnessione e comunicarlo alla prossima riconenssione
         FILE* fp;
         char disconnect_file[50];
-        sprintf(disconnect_file, ".%s-disconnect", Device.username);
+        sprintf(disconnect_file, "./%s/disconnect", Device.username);
         fp = fopen(disconnect_file, "w");
         if (fp == NULL) {
             DEBUG_PRINT(("impossibile aprire file di disconnessione pendente %s", disconnect_file));
@@ -426,23 +426,20 @@ bool Device_resolvePort(UserContact* contact)
 void Device_share(char* file_name)
 {
     char *dest, *joined_chat_receivers, buffer[1024];
-    int sd, len;
+    int sd, len, pid;//, num_dest, i; 
+    long int size, sended;
     FILE *fp;
     UserContact *elem;
     // bool found;
     if (!Device.is_chatting) { // utente loggato ma non sta chattando con nessuno (è nel menu principale)
         SCREEN_PRINT(("prima di condividere un file è necessario entrare in una chat tramite il comando: chat <username>"));
     } else { // utente è in una chat con un certo numero di partecipanti
-        fp = fopen(file_name, "rb");
-        if (!fp){
-            perror("impossibile aprire il file: ");
-            return;
-        }
-        DEBUG_PRINT(("condivisione file: %s", file_name));
+        
         joined_chat_receivers = NULL;
         joined_chat_receivers = realloc(joined_chat_receivers, strlen(Device.joined_chat_receivers));
         strcpy(joined_chat_receivers, Device.joined_chat_receivers);
         dest = strtok(joined_chat_receivers, ", ");
+        // num_dest = 0;
         while(dest) { // per ogni destinatario con cui si sta chattando
             // found = false;
             DEBUG_PRINT(("├condivisione con: %s", dest));
@@ -458,33 +455,67 @@ void Device_share(char* file_name)
                         DEBUG_PRINT(("|└%s si trova alla porta %d", elem->username, elem->port));
                     }
 
-                    // non stiamo controllando che il destinatario sia proprio dest
-                    // ma solo che qualcuno risponda su questa porta.
-                    // Se la porta salvata non viene aggiornata e su quella stessa porta
-                    // si connette un altro utente, riceverà lui il file
-                    sd = net_initTCP(elem->port);
-                    if (sd == -1) {
-                        if (!Device_resolvePort(elem))
-                            break;
-                        close(sd);
+                    DEBUG_PRINT(("├─effettuo l'invio del file adesso"));
+                    // l'invio viene effettuato da un altro processo, in modo che
+                    // i files di grandi dimensioni non risultino bloccanti sullo stdin
+                    pid = fork();
+                    if (pid == -1) {
+                        perror("Errore durante la fork: ");
+                        break;
+                    }
+                    if (pid == 0) {
+                        // non stiamo controllando che il destinatario sia proprio dest
+                        // ma solo che qualcuno risponda su questa porta.
+                        // Se la porta salvata non viene aggiornata e su quella stessa porta
+                        // si connette un altro utente, riceverà lui il file
                         sd = net_initTCP(elem->port);
+                        if (sd == -1) {
+                            if (!Device_resolvePort(elem))
+                                break;
+                            close(sd);
+                            sd = net_initTCP(elem->port);
+                        }
+                        // DEBUG_PRINT(("├─effettuo l'invio del file adesso"));
+                        /**/
+                        fp = fopen(file_name, "rb");
+                        if (!fp){
+                            perror("impossibile aprire il file: ");
+                            return;
+                        }
+                        fseek(fp, 0, SEEK_END);
+                        size = ftell(fp);
+                        fseek(fp, 0, SEEK_SET);
+                        DEBUG_PRINT(("condivisione file: %s (dimensione: %ld)", file_name, size));
+                        /**/
+                        net_sendTCP(sd, "SHARE", file_name, strlen(file_name));
+                        memset(buffer, '\0', sizeof(buffer));
+                        sended = 0;
+                        while((len = fread(buffer, 1, sizeof(buffer), fp)) > 0) {
+                            net_sendTCP(sd, "FILE:", buffer, len);
+                            sended+=len;
+                            //printf("\r");
+                            //for(i = 0; i< num_dest; i++)
+                                //printf("\t\t\t\t");
+                            printf("\r> %s < %.2lf%% (%ld / %ld)", elem->username, (double)sended/size*100, sended, size);
+                            fflush(stdout);
+                            //DEBUG_PRINT(("chunk sended"));
+                        }
+                        if (sended != size)
+                            perror("il file non è stato inviato correttamente: ");
+                        net_sendTCP(sd, "|EOF|", "", 0);
+                        SCREEN_PRINT(("\n"));
+                        close(sd);
+                        fclose(fp); /**/
+                        exit(0);
+                        //break;
                     }
-                    DEBUG_PRINT(("├─effettuo l'invio del file adesso sul socket %d", sd));
-                    net_sendTCP(sd, "SHARE", file_name, strlen(file_name));
-                    memset(buffer, '\0', sizeof(buffer));
-                    while((len = fread(buffer, 1, sizeof(buffer), fp)) > 0) {
-                        net_sendTCP(sd, "FILE:", buffer, len);
-                        //DEBUG_PRINT(("chunk sended"));
-                    }
-                    net_sendTCP(sd, "|EOF|", "", 0);
-                    close(sd);
-                    break;
                 }
             } // for (elem in contacts)
             dest = strtok(NULL, ", ");
+            // num_dest++;
         } // while(dest)
         DEBUG_PRINT(("┴"));
-        fclose(fp);
+        //fclose(fp);
     }
 }
 
@@ -498,7 +529,7 @@ void Device_send(char* message)
     newlen = strlen(Device.username) + 
                         strlen(Device.joined_chat_receivers) + 
                         strlen(message) + 2;
-    DEBUG_PRINT(("newlen = %d (%ld + %ld + %ld + 2)", newlen, strlen(Device.username), strlen(Device.joined_chat_receivers), strlen(message)));
+    // DEBUG_PRINT(("newlen = %d (%ld + %ld + %ld + 2)", newlen, strlen(Device.username), strlen(Device.joined_chat_receivers), strlen(message)));
     DEBUG_PRINT(("username = %s", Device.username));
     DEBUG_PRINT(("joined_chat_receivers = %s", Device.joined_chat_receivers));
     DEBUG_PRINT(("message = %s", message));
@@ -598,13 +629,13 @@ void Device_handleTCP(int sd)
     void *tmp;
     char cmd[REQ_LEN];
     FILE* fp;
-    char file_name[64];
+    char file_name[128];
     int len;
-    DEBUG_PRINT(("Device_handleTCP(%d)", sd));
+    // DEBUG_PRINT(("Device_handleTCP(%d)", sd));
     net_receiveTCP(sd, cmd, &tmp);
     DEBUG_PRINT(("ricevuto cmd = %s\npayload = %s", cmd, (char*)tmp));
     if (!strcmp(cmd, "SHARE")){
-        sprintf(file_name, "copy-%s", (char*)tmp);
+        sprintf(file_name, "./%s/copy-%s", Device.username, (char*)tmp);
         DEBUG_PRINT(("saving to %s", file_name));
         fp = fopen(file_name, "wb");
         if (!fp) {

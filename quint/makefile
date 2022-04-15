@@ -28,11 +28,14 @@ time.o: util/time.c
 
 # pulizia dei file della compilazione 
 clean: 
-	-rm *.exe *.o dev serv .*-disconnect .*-contacts copy-*
+	mkdir -p user1
+	mkdir -p user2
+	mkdir -p user3
+	-rm *.exe *.o dev serv user*/*
 	echo "user1 pass 5001 0 0 3\nuser2 pass 5002 0 0 3\nuser3 pass 5003 0 0 3" > shadow
-	echo "user2\nuser4" > .user1-contacts
-	echo "user1\nuser3" > .user2-contacts
-	echo "user2" > .user3-contacts
+	echo "user2\nuser4" > user1/contacts
+	echo "user1\nuser3" > user2/contacts
+	echo "user2" > user3/contacts
 
 # sezione dedicata al testing del codice in fase di sviluppo
 
