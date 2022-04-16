@@ -113,7 +113,13 @@ void Device_loadContacts()
     size_t len = 0;
     ssize_t read;
     char this_user[USERNAME_LEN];
+    UserContact* elem;
 
+    while(Device.contacts_head){
+        elem = Device.contacts_head;
+        Device.contacts_head = elem->next;
+        free(elem);
+    }
     sprintf(contacts_file, "./%s/contacts", Device.username);
     fp = fopen(contacts_file, "r");
     if (fp != NULL) {
@@ -270,6 +276,11 @@ void Device_signup(char* username, char* password)
                 SCREEN_PRINT(("signup avvenuta con successo!"));
                 Device.is_logged_in = true;
                 sscanf(username, "%s", Device.username);
+                if(!mkdir(username, 0777)){
+                    DEBUG_PRINT(("cartella creata %s", username));
+                } else {
+                    DEBUG_PRINT(("errore nella creazione della cartella %s", username));
+                }
                 Device_loadContacts();
             } else if (!strcmp("KNOWN", cmd)) {
                 SCREEN_PRINT(("signup rifiutata: utente già registrato. (Usare il comando 'in' per collegarsi)"));

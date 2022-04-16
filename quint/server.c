@@ -6,6 +6,7 @@
 #include <unistd.h>
 #include <stdbool.h>
 #include <dirent.h>
+#include <sys/stat.h>
 #include "util/IOMultiplex.h"
 #include "util/cmd.h"
 #include "util/network.h"
@@ -224,6 +225,7 @@ bool Server_signupCredentials(char* username, char* password, int dev_port)
 {
     UserEntry* elem;
     Server_loadUserEntry();
+    char hanging_folder[50];
     for ( elem = Server.user_register_head; elem!=NULL; elem = elem->next) {
         if (!strcmp(username, elem->user_dest))
             return false;
@@ -244,6 +246,13 @@ bool Server_signupCredentials(char* username, char* password, int dev_port)
     }
     DEBUG_PRINT(("credenziali caricate: %s %s", this_user->user_dest, this_user->password));
     Server_saveUserEntry();
+    memset(hanging_folder, '\0', sizeof(hanging_folder));
+    sprintf(hanging_folder, "./hanging/%s", username);
+    if(!mkdir(hanging_folder, 0777)){
+        DEBUG_PRINT(("cartella creata %s", hanging_folder));
+    } else {
+        DEBUG_PRINT(("errore nella creazione della cartella %s", hanging_folder));
+    }
     return true;
 
     // return strcmp(username, "pippo"); // && strcmp(password, "P!pp0");
