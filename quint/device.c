@@ -684,7 +684,7 @@ void Device_share(char* file_name)
                         DEBUG_PRINT(("messaggio salvato in %s", chat_file));
                         dest = strtok(NULL, ", ");
                         ///
-                        // exit(0); //FIXME: non dovrebbe esserci questo exit!!
+                        exit(0); //il processo ha terminato di inviare il file. Quindi termina
                         //break;
                     }
                 }
