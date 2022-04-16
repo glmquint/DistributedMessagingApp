@@ -264,14 +264,15 @@ void Server_hangMsg(char* dest, char* sender, void* buffer)
     fclose(fp);
 }
 
-void Server_forwardMsg(void* buffer)
+void Server_forwardMsg(int sd, void* buffer)
 {
     // TODO:
     char sender[32];
     char receivers[128];
     char msg[1024];
     char* dest;
-    int sd;
+    int newsd;
+    bool at_least_one_cached;
     UserEntry* elem;
     memset(sender, '\0', 32);
     memset(receivers, '\0', 128);
@@ -281,27 +282,37 @@ void Server_forwardMsg(void* buffer)
     sscanf(buffer, "(%[^)])<-(%[^)]): %[^\n]", receivers, sender, msg);
     DEBUG_PRINT(("sender: %s\n receivers: %s\n msg: %s", sender, receivers, msg));
     Server_loadUserEntry(); // non se ne modifica il contenuto, quindi non c'è bisogno di chiamare saveUserEntry() alla fine
+    at_least_one_cached = false;
     dest = strtok(receivers, ", ");
     while(dest){
         for (elem = Server.user_register_head; elem != NULL; elem = elem->next) {
             if (!strcmp(elem->user_dest, dest)) {
-                if (elem->port == -1)
+                if (elem->port == -1){
                     Server_hangMsg(dest, sender, buffer);
-                else{
-                    sd = net_initTCP(elem->port);
-                    if (sd == -1){
-                        sleep(3*TIMEOUT); // askHeartBeat si occuperà di assicurare se dest sia raggiungibile
-                        sd = net_initTCP(elem->port);
-                        if (sd == -1)
+                    at_least_one_cached = true;
+                }else{
+                    newsd = net_initTCP(elem->port);
+                    if (newsd == -1){
+                        sleep(3*TIMEOUT); // grazie ad askHeartBeat, questo è equivalente a tentare tre volte la riconnessione
+                        newsd = net_initTCP(elem->port);
+                        if (newsd == -1){
                             Server_hangMsg(dest, sender, buffer);
+                            at_least_one_cached = true;
+                        }
                     } else {
-                        net_sendTCP(sd, "|MSG|", buffer, strlen(buffer));
+                        net_sendTCP(newsd, "|MSG|", buffer, strlen(buffer));
                         DEBUG_PRINT(("messaggio trasmesso a %s", dest));
                     }
+                    close(newsd);
                 }
             }
         }   
         dest = strtok(NULL, ", ");
+    }
+    if (at_least_one_cached){
+        net_sendTCP(sd, "CACHE", "", 0);
+    } else{
+        net_sendTCP(sd, "READ:", "", 0);
     }
 }
 
@@ -333,6 +344,66 @@ void Server_hanging(int sd, char* user)
 
     net_sendTCP(sd, "OK-OK", count_str, strlen(count_str));
     closedir(dr);
+}
+
+void Server_show(int sd, char* src_dest)
+{
+    char user[32], hanging_user[32], hanging_file[70];
+    FILE* fp;
+    int len, new_sd;
+    char buffer[1024];
+    DEBUG_PRINT(("showing hanging messages (for, from) %s", src_dest));
+    sscanf(src_dest, "%s %s", user, hanging_user);
+    sprintf(hanging_file, "./hanging/%s/%s", user, hanging_user);
+    fp = fopen(hanging_file, "r");
+    if (fp == NULL){
+        net_sendTCP(sd, "ERROR", src_dest, strlen(src_dest));
+        return;
+    }
+    memset(buffer, '\0', sizeof(buffer));
+    while((len = fread(buffer, 1, sizeof(buffer), fp)) > 0) {
+        net_sendTCP(sd, "HANGF", buffer, len);
+    }
+    net_sendTCP(sd, "|EOH|", "", 0);
+    fclose(fp);
+
+    if(!remove(hanging_file)){
+        DEBUG_PRINT(("file di messaggi non letti %s rimosso con successo", hanging_file));
+    } else {
+        DEBUG_PRINT(("impossibile rimuovere il file di messaggi non letti %s", hanging_file));
+    }
+    // adesso avvisiamo hanging_user che i suoi messaggi sono stati letti
+    Server_loadUserEntry();
+    UserEntry* elem;
+    for (elem=Server.user_register_head; elem!=NULL; elem=elem->next){
+        if(!strcmp(elem->user_dest, hanging_user)){
+            if(elem->port == -1)
+                break;
+            new_sd = net_initTCP(elem->port);
+            if(new_sd == -1)
+                break;
+            net_sendTCP(new_sd, "READ:", user, strlen(user));
+            DEBUG_PRINT(("%s avvisato con successo della lettura dei messaggi da parte di %s", hanging_user, user));
+            return;
+        }
+    }
+    DEBUG_PRINT(("impossibile avvisare %s della lettura dei messaggi da parte di %s", hanging_user, user));
+
+
+    /*TODO: @ghi0m
+    sscanf(buffer -> user, hanging)
+    fopen(./hanging/<user>/<hanging>)
+    while(read):
+        send("HANGF", content)
+    send("|EOH|")
+    for user in user_list
+        if user->username == hanging && user->port != -1:
+            net_init(<hanging>.port)
+            send("READ:", user)
+            close()
+            return
+    DEBUG(impossibile avvisare <hanging> della lettura dei messaggi pendenti)
+    */
 }
 
 void Server_handleTCP(int sd)
@@ -418,9 +489,11 @@ void Server_handleTCP(int sd)
         }
     } else if (!strcmp("|MSG|", cmd)) {
         //DEBUG_PRINT(("ricevuta richiesta di inoltro messaggio: %s", (char*)tmp));
-        Server_forwardMsg(tmp);
+        Server_forwardMsg(sd, tmp);
     } else if (!strcmp("HANG?", cmd)) {
         Server_hanging(sd, (char*)tmp);
+    } else if (!strcmp("SHOW:", cmd)) {
+        Server_show(sd, (char*)tmp);
     } else {
         DEBUG_PRINT(("ricevuto comando remoto non valido: %s", cmd));
     }

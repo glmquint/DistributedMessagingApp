@@ -334,6 +334,50 @@ void Device_show(char* username)
 {
     //TODO
     DEBUG_PRINT(("showing pending messages from %s", username));
+    int sd;
+    char buffer[70];
+    char cmd[6];
+    void* tmp;
+    FILE* fp;
+    char chat_file[70];
+    int len;
+    sd = net_initTCP(Device.srv_port);
+    if (sd == -1){
+        perror("impossibile contattare il server");
+        return;
+    }
+    // memset(buffer, '\0', sizeof(buffer));
+    sprintf(buffer, "%s %s", Device.username, username);
+    net_sendTCP(sd, "SHOW:", buffer, strlen(buffer));
+    len = net_receiveTCP(sd, cmd, &tmp);
+    if(!strcmp(cmd, "ERROR")){
+        perror("errore nella ricezione di messaggi non letti");
+    } else {
+        sprintf(chat_file, "./%s/%s", Device.username, username);
+        fp = fopen(chat_file, "ab");
+        if (fp == NULL){
+            perror("impossibile appendere sul file di chat");
+            fp = fopen(chat_file, "wb");
+            if (fp == NULL){
+                perror("impossibile aprire il file di chat");
+                close(sd);
+                return;
+            }
+        }
+        while(!strcmp(cmd, "HANGF")){
+            fwrite(tmp, 1, len, fp);
+            DEBUG_PRINT(("ricevuto dal server e salvato in chat: %s", (char*)tmp));
+            free(tmp);
+            len = net_receiveTCP(sd, cmd, &tmp);
+        }
+        if(strcmp(cmd, "|EOH|")){
+            perror("errore nella ricezione fine messaggi non letti");
+        }
+        fclose(fp);
+    }
+
+    close(sd);
+    free(tmp);
 }
 
 void Device_chat(char* username)
@@ -341,7 +385,7 @@ void Device_chat(char* username)
     FILE* fp;
     char s;
     UserContact *elem;
-    char chat_file[70];
+    char chat_file[75];
     for (elem = Device.contacts_head; elem != NULL; elem = elem->next) {
         if (!strcmp(elem->username, username)) {
             SCREEN_PRINT(("=== chat iniziata con %s ===", username));
@@ -354,6 +398,20 @@ void Device_chat(char* username)
             fp = fopen(chat_file, "r");
             if (fp == NULL) {
                 SCREEN_PRINT(("nessun messaggio in questa chat"));
+            } else{
+                while((s=fgetc(fp))!= EOF){
+                    printf("%c", s);
+                }
+                printf("\n");
+                fclose(fp);
+            }
+            // cached msgs
+            SCREEN_PRINT(("=== messaggi non letti da %s ===", username));
+            sprintf(chat_file, "./%s/cached-%s", Device.username, elem->username);
+            DEBUG_PRINT(("apertura del file: %s", chat_file));
+            fp = fopen(chat_file, "r");
+            if (fp == NULL) {
+                SCREEN_PRINT(("nessun messaggio non letto"));
             } else{
                 while((s=fgetc(fp))!= EOF){
                     printf("%c", s);
@@ -646,6 +704,7 @@ void Device_send(char* message)
     FILE* fp;
     UserContact* elem;
     char chat_file[64];
+    bool cached;
     payload = NULL;
     DEBUG_PRINT(("invio messaggio: %s", message));
 
@@ -717,7 +776,7 @@ void Device_send(char* message)
                     /**/
                     net_sendTCP(sd, "|MSG|", payload, strlen(payload));
                     net_receiveTCP(sd, cmd, (void*)payload);
-                    if(!strcmp(cmd, "OK-OK")){
+                    if(!strcmp(cmd, "READ:")){
                         DEBUG_PRINT(("messaggio recapitato correttamente"));
                     }else{
                         DEBUG_PRINT(("errore nella risposta al messaggio"));
@@ -731,20 +790,34 @@ void Device_send(char* message)
             // num_dest++;
         } // while(dest)
         DEBUG_PRINT(("┴"));
-    } else {
+    } else { // richiesta al server di forward del messaggio
         net_sendTCP(sd, "|MSG|", payload, strlen(payload));
+        net_receiveTCP(sd, cmd, (void*)payload);
+        cached = true;
+        if(!strcmp(cmd, "READ:")){
+            DEBUG_PRINT(("messaggio recapitato correttamente"));
+            cached = false;
+        } else if (!strcmp(cmd, "CACHE")){
+            DEBUG_PRINT(("messaggio salvato nella cache del server"));
+        }else{
+            DEBUG_PRINT(("errore nella risposta al messaggio"));
+        }
+        close(sd);
+
     }
     joined_chat_receivers = NULL;
     joined_chat_receivers = realloc(joined_chat_receivers, strlen(Device.joined_chat_receivers));
     strcpy(joined_chat_receivers, Device.joined_chat_receivers);
-    DEBUG_PRINT(("reached here"));
     sprintf(payload, "(%s)->(%s): %s", Device.username, Device.joined_chat_receivers, message);
     SCREEN_PRINT(("%s", payload));
     dest = strtok(joined_chat_receivers, ", ");
     //FIXME: refactor with send file
     while(dest) { // per ogni destinatario con cui si sta chattando
-        sprintf(chat_file, "./%s/%s", Device.username, dest);
-        DEBUG_PRINT(("saving %s to %s", payload, chat_file));
+        if (cached)
+            sprintf(chat_file, "./%s/cached-%s", Device.username, dest);
+        else
+            sprintf(chat_file, "./%s/%s", Device.username, dest);
+        // DEBUG_PRINT(("saving %s to %s", payload, chat_file));
         fp = fopen(chat_file, "a");
         if (fp == NULL) {
             DEBUG_PRINT(("Impossibile aprire file %s", chat_file));
@@ -868,6 +941,55 @@ void Device_saveMsg(char* buffer)
 
 }
 
+void Device_markRead(char* user)
+{
+    //TODO: @glm
+    char hanging_file[70], chat_file[70];
+    int len;
+    char buffer[1024];
+    FILE *hfp, *cfp;
+    sprintf(hanging_file, "./%s/cached-%s", Device.username, user);
+    sprintf(chat_file, "./%s/%s", Device.username, user);
+    hfp = fopen(hanging_file, "r");
+    if (hfp == NULL){
+        perror("file di messaggi non letti non trovato");
+        return;
+    }
+    cfp = fopen(chat_file, "a");
+    if (cfp == NULL){
+        perror("impossibile appendere sul file di chat");
+        cfp = fopen(chat_file, "w");
+        if (cfp == NULL){
+            perror("impossibile accedere al file di chat");
+            fclose(hfp);
+            return;
+        }
+    }
+    memset(buffer, '\0', sizeof(buffer));
+    while((len = fread(buffer, 1, sizeof(buffer), hfp)) > 0){
+        fwrite(buffer, 1, len, cfp);
+        DEBUG_PRINT(("messaggi appena letti da %s: %s", user, buffer));
+    }
+    fclose(cfp);
+    fclose(hfp);
+    if(!remove(hanging_file)){
+        DEBUG_PRINT(("file di messaggi non letti %s rimosso con successo", hanging_file));
+    } else {
+        DEBUG_PRINT(("impossibile rimuovere il file di messaggi non letti %s", hanging_file));
+    }
+
+
+    /*
+    fopen(/<dev.username>/cached-<user>, r)
+    fopen(/<dev.username>/<user>, a)
+    while(read(pending))
+        write(chat)
+    fclose(chat)
+    flose(pending)
+    remove(pending)
+    */
+}
+
 void Device_handleUDP(int sd)
 {
     net_answerHeartBeat(sd, Device.port);
@@ -904,7 +1026,9 @@ void Device_handleTCP(int sd)
     } else if (!strcmp(cmd, "|MSG|")){
         DEBUG_PRINT(("ricevuto messaggio: %s", (char*)tmp));
         Device_saveMsg((char*)tmp);
-        net_sendTCP(sd, "OK-OK", "", 0);
+        net_sendTCP(sd, "READ:", "", 0);
+    } else if (!strcmp(cmd, "READ:")){
+        Device_markRead((char*)tmp);
     }
     free(tmp);
     close(sd);
