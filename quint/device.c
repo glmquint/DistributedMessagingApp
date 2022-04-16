@@ -14,7 +14,7 @@
 #define USERNAME_LEN 32
 #define REQ_LEN 6
 
-#define DEBUG_ON
+#define DEBUG_OFF
 
 
 // funzioni di utility per mostrare a schermo informazioni di debug
@@ -366,7 +366,8 @@ void Device_show(char* username)
         }
         while(!strcmp(cmd, "HANGF")){
             fwrite(tmp, 1, len, fp);
-            DEBUG_PRINT(("ricevuto dal server e salvato in chat: %s", (char*)tmp));
+            // DEBUG_PRINT(("ricevuto dal server e salvato in chat: %s", (char*)tmp));
+            SCREEN_PRINT(("%s", (char*)tmp));
             free(tmp);
             len = net_receiveTCP(sd, cmd, &tmp);
         }
@@ -399,6 +400,7 @@ void Device_chat(char* username)
             if (fp == NULL) {
                 SCREEN_PRINT(("nessun messaggio in questa chat"));
             } else{
+                printf("\r");
                 while((s=fgetc(fp))!= EOF){
                     printf("%c", s);
                 }
@@ -413,6 +415,7 @@ void Device_chat(char* username)
             if (fp == NULL) {
                 SCREEN_PRINT(("nessun messaggio non letto"));
             } else{
+                printf("\r");
                 while((s=fgetc(fp))!= EOF){
                     printf("%c", s);
                 }
@@ -475,7 +478,7 @@ void Device_addToChat(char* username)
         if (!strcmp(elem->username, username)) {
             found = true;
             if (elem->port == -1 && !Device_resolvePort(elem)){
-                DEBUG_PRINT(("utente disconnesso. Impossibile aggiungerlo alla chat"));
+                SCREEN_PRINT(("utente disconnesso. Impossibile aggiungerlo alla chat"));
                 return;
             }
             elem->is_in_chat = true;
@@ -563,6 +566,7 @@ void Device_quitChat()
     for (elem = Device.contacts_head; elem != NULL; elem = elem->next)
         elem->is_in_chat = false;
     Device.is_chatting = false;
+    //free(Device.joined_chat_receivers);
 }
 
 void Device_share(char* file_name)
@@ -935,6 +939,17 @@ void Device_saveMsg(char* buffer)
         }
     }
     fprintf(fp, "%s", buffer);
+    if(Device.is_chatting){
+         UserContact *elem;
+        for (elem = Device.contacts_head; elem != NULL; elem=elem->next){
+            if(!strcmp(elem->username, sender)){
+                if(elem->is_in_chat){
+                    SCREEN_PRINT(("%s", buffer));
+                }
+                break;
+            }
+        }
+    }
     //fprintf(fp, "===================");
     fclose(fp);
     DEBUG_PRINT(("messaggio salvato in %s", chat_file));

@@ -16,7 +16,7 @@
 #define REQ_LEN 6
 #define TIMEOUT 1
 
-#define DEBUG_ON
+#define DEBUG_OFF
 
 #ifdef DEBUG_ON
 # define DEBUG_PRINT(x) printf("[DEBUG]: "); printf x; printf("\n"); fflush(stdout)
@@ -194,6 +194,7 @@ void Server_onTimeout()
             } else { // no chances left
                 // TODO: make it disconnected
                 elem->timestamp_logout = getTimestamp();
+                elem->port = -1;
                 DEBUG_PRINT(("%s disconnected", elem->user_dest));
             }
         }
@@ -454,9 +455,10 @@ void Server_handleTCP(int sd)
             Server_loadUserEntry();
             for (elem = Server.user_register_head; elem != NULL; elem = elem->next) {
                 if (!strcmp(elem->user_dest, username)) {
-                    if (logout_ts == 0)
+                    if (logout_ts == 0) {
                         elem->timestamp_logout = getTimestamp();
-                    else
+                        elem->port = -1;
+                    } else
                         elem->timestamp_logout = logout_ts;
                     DEBUG_PRINT(("utente %s disconnesso", username));
                     Server_saveUserEntry();
