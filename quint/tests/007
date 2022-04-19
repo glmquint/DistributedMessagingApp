@@ -1,4 +1,0 @@
-./serv 1337 << EOF
-help
-esc
-EOF

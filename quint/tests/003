@@ -1,4 +1,0 @@
-./dev 4242 << EOF
-not-a-valid-cmd
-esc
-EOF

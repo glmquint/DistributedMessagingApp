@@ -1,3 +1,0 @@
-./serv << EOF
-esc
-EOF

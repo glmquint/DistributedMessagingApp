@@ -1,13 +1,0 @@
-009
-[DEBUG]: credenziali caricate: pippo P!pp0
-[DEBUG]: credenziali caricate: pluto P(u70
-[DEBUG]: credenziali caricate: paperino Pap3r!n0
-        
-Digita un comando:
-
->>     help --> mostra i dettagli dei comandi
->>     list --> mostra un elenco degli utenti connessi
->>     esc --> chiude il server
->> [DEBUG]: ricevuta richiesta di login da parte di ( pippo : P!pp0 )
-[DEBUG]: richiesta di login accettata
-[DEBUG]: utente pippo disconnesso

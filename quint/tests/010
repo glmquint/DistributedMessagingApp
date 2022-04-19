@@ -1,7 +1,0 @@
-pkill serv
-./serv & 
-./dev 5001 1>/dev/null << EOF
-in 4242 unregistered-user some-pass
-esc
-EOF
-pkill serv

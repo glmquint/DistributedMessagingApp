@@ -1,17 +1,0 @@
-013
-        
-Digita un comando:
-
->>     signup <username> <password> --> crea un account sul server
->>     in <srv_port> <username> <password> --> richiede al server la connessione al servizio
->>     esc --> chiude l'applicazione
->> [DEBUG]: inviata richiesta di signup, ora in attesa
-[DEBUG]: ricevuta risposta dal server
-signup rifiutata: utente già registrato. (Usare il comando 'in' per collegarsi)
->>         
-Digita un comando:
-
->>     signup <username> <password> --> crea un account sul server
->>     in <srv_port> <username> <password> --> richiede al server la connessione al servizio
->>     esc --> chiude l'applicazione
->> Arrivederci

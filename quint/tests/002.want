@@ -1,8 +1,0 @@
-002
-        
-Digita un comando:
-
->>     signup <username> <password> --> crea un account sul server
->>     in <srv_port> <username> <password> --> richiede al server la connessione al servizio
->>     esc --> chiude l'applicazione
->> Arrivederci
