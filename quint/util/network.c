@@ -21,7 +21,12 @@
 int net_initTCP(int sv_port)
 {
     struct sockaddr_in sv_addr;
-    int sd = socket(AF_INET, SOCK_STREAM, 0);
+    int sd;
+
+    if(sv_port == -1)
+        return -1;
+        
+    sd = socket(AF_INET, SOCK_STREAM, 0);
 
     memset(&sv_addr, 0, sizeof(sv_addr));
     sv_addr.sin_family = AF_INET;

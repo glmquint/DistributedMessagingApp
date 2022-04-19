@@ -1156,5 +1156,5 @@ int main(int argv, char *argc[])
                 0,
                 NULL);
 
-    return 1; // mai raggiunto
+    return 1;
 }
