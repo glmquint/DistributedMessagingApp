@@ -1,0 +1,147 @@
+﻿1 | X | X | 50 | Left Click Down
+2 | X | X | 50 | Left Click Release
+3 | X | X | 50 | Keypress m
+4 | X | X | 50 | Keypress a
+5 | X | X | 50 | Keypress k
+6 | X | X | 50 | Keypress e
+7 | X | X | 50 | Keypress space
+8 | X | X | 50 | Keypress c
+9 | X | X | 50 | Keypress l
+10 | X | X | 50 | Keypress e
+11 | X | X | 50 | Keypress a
+12 | X | X | 50 | Keypress n
+13 | X | X | 50 | Keypress space
+14 | X | X | 50 | Keypress Shift+ | ^
+15 | X | X | 50 | Keypress Shift+ | ^
+16 | X | X | 50 | Keypress space
+17 | X | X | 50 | Keypress m
+18 | X | X | 50 | Keypress a
+19 | X | X | 50 | Keypress k
+20 | X | X | 50 | Keypress e
+21 | X | X | 50 | Keypress space
+22 | X | X | 50 | Keypress Shift+ | ^
+23 | X | X | 50 | Keypress Shift+ | ^
+24 | X | X | 50 | Keypress space
+25 | X | X | 50 | Keypress .
+26 | X | X | 50 | Keypress divide
+27 | X | X | 50 | Keypress s
+28 | X | X | 50 | Keypress e
+29 | X | X | 50 | Keypress r
+30 | X | X | 50 | Keypress v
+31 | X | X | 50 | Keypress space
+32 | X | X | 50 | Keypress Shift+ | |
+33 | X | X | 50 | Keypress space
+34 | X | X | 50 | Keypress t
+35 | X | X | 50 | Keypress e
+36 | X | X | 50 | Keypress e
+37 | X | X | 50 | Keypress space
+38 | X | X | 50 | Keypress divide
+39 | X | X | 50 | Keypress t
+40 | X | X | 50 | Keypress m
+41 | X | X | 50 | Keypress p
+42 | X | X | 50 | Keypress divide
+43 | X | X | 50 | Keypress s
+44 | X | X | 50 | Keypress e
+45 | X | X | 50 | Keypress r
+46 | X | X | 50 | Keypress v
+47 | X | X | 50 | Keypress Shift+ | _
+48 | X | X | 50 | Keypress o
+49 | X | X | 50 | Keypress u
+50 | X | X | 50 | Keypress t
+51 | X | X | 50 | Keypress enter
+52 | 341 | 333 | 3092 | Keypress Alt+ | right
+53 | X | X | 50 | Keypress .
+54 | X | X | 50 | Keypress divide
+55 | X | X | 50 | Keypress d
+56 | X | X | 50 | Keypress e
+57 | X | X | 50 | Keypress v
+58 | X | X | 50 | Keypress space
+59 | X | X | 50 | Keypress 5
+60 | X | X | 50 | Keypress 0
+61 | X | X | 50 | Keypress 0
+62 | X | X | 50 | Keypress 1
+63 | X | X | 50 | Keypress space
+64 | X | X | 50 | Keypress Shift+ | |
+65 | X | X | 50 | Keypress space
+66 | X | X | 50 | Keypress t
+67 | X | X | 50 | Keypress e
+68 | X | X | 50 | Keypress e
+69 | X | X | 50 | Keypress space
+70 | X | X | 50 | Keypress divide
+71 | X | X | 50 | Keypress t
+72 | X | X | 50 | Keypress m
+73 | X | X | 50 | Keypress p
+74 | X | X | 50 | Keypress divide
+75 | X | X | 50 | Keypress 5
+76 | X | X | 50 | Keypress 0
+77 | X | X | 50 | Keypress 0
+78 | X | X | 50 | Keypress 1
+79 | X | X | 50 | Keypress Shift+ | _
+80 | X | X | 50 | Keypress o
+81 | X | X | 50 | Keypress u
+82 | X | X | 50 | Keypress t
+83 | X | X | 50 | Keypress enter
+84 | X | X | 50 | Keypress Alt+ | down
+85 | X | X | 50 | Keypress .
+86 | X | X | 50 | Keypress divide
+87 | X | X | 50 | Keypress d
+88 | X | X | 50 | Keypress e
+89 | X | X | 50 | Keypress v
+90 | X | X | 50 | Keypress space
+91 | X | X | 50 | Keypress 5
+92 | X | X | 50 | Keypress 0
+93 | X | X | 50 | Keypress 0
+94 | X | X | 50 | Keypress 2
+95 | X | X | 50 | Keypress space
+96 | X | X | 50 | Keypress Shift+ | |
+97 | X | X | 50 | Keypress space
+98 | X | X | 50 | Keypress t
+99 | X | X | 50 | Keypress e
+100 | X | X | 50 | Keypress e
+101 | X | X | 50 | Keypress space
+102 | X | X | 50 | Keypress divide
+103 | X | X | 50 | Keypress t
+104 | X | X | 50 | Keypress m
+105 | X | X | 50 | Keypress p
+106 | X | X | 50 | Keypress divide
+107 | X | X | 50 | Keypress 5
+108 | X | X | 50 | Keypress 0
+109 | X | X | 50 | Keypress 0
+110 | X | X | 50 | Keypress 2
+111 | X | X | 50 | Keypress Shift+ | _
+112 | X | X | 50 | Keypress o
+113 | X | X | 50 | Keypress u
+114 | X | X | 50 | Keypress t
+115 | X | X | 50 | Keypress enter
+116 | X | X | 50 | Keypress Alt+ | right
+117 | X | X | 50 | Keypress .
+118 | X | X | 50 | Keypress divide
+119 | X | X | 50 | Keypress d
+120 | X | X | 50 | Keypress e
+121 | X | X | 50 | Keypress v
+122 | X | X | 50 | Keypress space
+123 | X | X | 50 | Keypress 5
+124 | X | X | 50 | Keypress 0
+125 | X | X | 50 | Keypress 0
+126 | X | X | 50 | Keypress 3
+127 | X | X | 50 | Keypress space
+128 | X | X | 50 | Keypress Shift+ | |
+129 | X | X | 50 | Keypress space
+130 | X | X | 50 | Keypress t
+131 | X | X | 50 | Keypress e
+132 | X | X | 50 | Keypress e
+133 | X | X | 50 | Keypress space
+134 | X | X | 50 | Keypress divide
+135 | X | X | 50 | Keypress t
+136 | X | X | 50 | Keypress m
+137 | X | X | 50 | Keypress p
+138 | X | X | 50 | Keypress divide
+139 | X | X | 50 | Keypress 5
+140 | X | X | 50 | Keypress 0
+141 | X | X | 50 | Keypress 0
+142 | X | X | 50 | Keypress 3
+143 | X | X | 50 | Keypress Shift+ | _
+144 | X | X | 50 | Keypress o
+145 | X | X | 50 | Keypress u
+146 | X | X | 50 | Keypress t
+147 | X | X | 50 | Keypress enter
