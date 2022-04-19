@@ -18,6 +18,7 @@
 
 #define REQ_LEN 6 /* LOGIN\0 */
 
+// crea ed inizializza un nuovo socket per la comunicazione TCP
 int net_initTCP(int sv_port)
 {
     struct sockaddr_in sv_addr;
@@ -40,12 +41,12 @@ int net_initTCP(int sv_port)
     return sd;
 }
 
+// invia un messaggio su un socket TCP seguendo lo schema CODE-MSG_LEN-MSG
 int net_sendTCP(int sd, char protocol[6], void* buffer, int len)
 {
-    // int len;
     uint32_t lmsg;
     int ret; 
-    // len = sizeof(buffer);
+
     lmsg = htonl(len);
     DEBUG_PRINT(("send protocol: %s", protocol));
     if (send(sd, (void *)protocol, REQ_LEN, 0) < 0) {
@@ -60,7 +61,6 @@ int net_sendTCP(int sd, char protocol[6], void* buffer, int len)
     if (len > 0) { // non eseguire la send se il messaggio è vuoto
         DEBUG_PRINT(("send buffer: %s", (char*)buffer));
         if (ret = send(sd, buffer, len, 0) < len) {
-            // DEBUG_PRINT(("inviati %d bytes", ret));
             perror("Errore in fase di invio messaggio");
             exit(-1);
         }
@@ -68,14 +68,16 @@ int net_sendTCP(int sd, char protocol[6], void* buffer, int len)
     return ret;
 }
 
-// viene allocata memoria per buffer! Ricordarsi di usare free
+// riceve un messaggio su un socket TCP inviato tramite la funzione net_sendTCP
+// Il contenuto del messaggio viene allocato in buffero
+//
+// Attenzione: viene allocata memoria per buffer! Ricordarsi di usare free
 int net_receiveTCP(int sd, char protocol[6], void** buffer)
 {
     int len;
     uint32_t lmsg;
     char error_msg[64];
 
-    // DEBUG_PRINT(("  before buffer=%x", *buffer));
     memset(protocol, '\0', 6);
 
     if (recv(sd, (char *)protocol, REQ_LEN, 0) < REQ_LEN) {
@@ -107,6 +109,7 @@ int net_receiveTCP(int sd, char protocol[6], void** buffer)
     return len;
 }
 
+// richiesta di heartbeat su un socket UDP
 void net_askHearthBeat(int remote_port, int local_port)
 {
     int sd;
@@ -136,6 +139,8 @@ void net_askHearthBeat(int remote_port, int local_port)
     close(sd);
 }
 
+// ricezione di una richiesta di heartbeat su un socket UDP
+// e risposta allo stesso indirizzo con un messaggio di alive
 void net_answerHeartBeat(int sd, int local_port)
 {
     char buffer[REQ_LEN];
@@ -169,6 +174,7 @@ void net_answerHeartBeat(int sd, int local_port)
     DEBUG_PRINT(("answered alive to %d (n = %d)", ntohs(claddr.sin_port), n));
 }
 
+// ricezione del messaggio di alive su protocollo UDP come risposta alla richiesta di heartbeat
 int net_receiveHeartBeat(int sd)
 {
     char buffer[REQ_LEN];

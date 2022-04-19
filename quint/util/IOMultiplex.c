@@ -28,7 +28,6 @@ struct sIOMultiplexer
 {
     fd_set master;
     fd_set read_fds;
-    // fd_set write_fds;
     int fdmax;
 } iom;
 
@@ -65,7 +64,6 @@ void IOMultiplex(int port,
 
     FD_ZERO(&(iom.master));
     FD_ZERO(&(iom.read_fds));
-    // FD_ZERO(&(iom.write_fds));
 
     FD_SET(STDIN, &(iom.master));
     FD_SET(listener, &(iom.master));
@@ -110,7 +108,6 @@ void IOMultiplex(int port,
                             iom.fdmax = newfd;
                     }
                     else if (i == STDIN) { // input da tastiera
-                        // if (fgets(buffer, sizeof buffer, stdin))
                         if (read(STDIN, buffer, BUF_LEN))
                             handleSTDIN(buffer);
                     }
@@ -118,7 +115,6 @@ void IOMultiplex(int port,
                         handleUDP(i);
                     }
                     else { // messaggio TCP
-                        // handleTCP(i);
                         pid = fork();
                         if (pid == -1) {
                             perror("Errore durante la fork: ");
@@ -134,11 +130,7 @@ void IOMultiplex(int port,
                     }
                 }
             }
-        } else { // select == 0 (timeout elapsed)
-            /*
-            printf("."); // TODO: sanity checks
-            fflush(stdout);
-            */
+        } else { // select == 0 (timeout scaduto)
             onTimeout();
             tv.tv_sec = timeout_sec;
             tv.tv_usec = 0;
