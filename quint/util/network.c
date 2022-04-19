@@ -90,7 +90,6 @@ int net_receiveTCP(int sd, char protocol[6], void** buffer)
     if (len > 0) { // se il messaggio è vuoto è inutile fare la recv
         *buffer = malloc(len);
         memset(*buffer, 0, len+1);
-        //memset(*buffer, 0, len);
         if (recv(sd, (void *)*buffer, len, 0) < len) {
             sprintf(error_msg, "Errore in fase di ricezione messaggio (%d)", len);
             perror(error_msg);
@@ -98,13 +97,11 @@ int net_receiveTCP(int sd, char protocol[6], void** buffer)
         }
         DEBUG_PRINT(("received buffer: %s", (char*)*buffer));
     } else {
-        *buffer = (void*)0; // NULL
+        *buffer = (void*)0;
     }
     return len;
-    // DEBUG_PRINT(("  after buffer=%x", *buffer));
 }
 
-//FIXME: check and format
 void net_askHearthBeat(int remote_port, int local_port)
 {
     int sd;

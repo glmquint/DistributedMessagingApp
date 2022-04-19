@@ -7,7 +7,7 @@ struct Cmd_s {
     char* name;
     char* arguments[20];
     int arg_num;
-    char* help;
+    char* help_msg;
     bool requires_login;
     bool always_print;
 };
@@ -24,7 +24,7 @@ void Cmd_showMenu(Cmd* cmd_list, int cmd_list_len, bool priv)
             int j;
             for (j = 0; j < cmd_list[i].arg_num; j++)
                 sprintf(current_args, "%s <%s>", current_args, cmd_list[i].arguments[j]);
-            SCREEN_PRINT(("    %s%s --> %s", cmd_list[i].name, current_args, cmd_list[i].help));
+            SCREEN_PRINT(("    %s%s --> %s", cmd_list[i].name, current_args, cmd_list[i].help_msg));
         }
     }
 }

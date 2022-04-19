@@ -517,6 +517,7 @@ void Server_handleTCP(int sd)
 int main(int argv, char *argc[])
 {
     Server_init(argv, argc);
+    SCREEN_PRINT(("\n\t\t*** SERVER : %d ***", Server.port));
     Cmd_showMenu(Server.available_cmds, CMDLIST_LEN, true);
     IOMultiplex(Server.port, 
                 true, 
