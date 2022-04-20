@@ -13,7 +13,7 @@
 #include "util/time.h"
 
 // ATTENZIONE: per attivare la modalità verbose, cambiare DEBUG_OFF -> DEBUG_ON prima di compilare
-#define DEBUG_OFF
+#define DEBUG_ON
 
 #define USERNAME_LEN    32
 #define CMDLIST_LEN     3
