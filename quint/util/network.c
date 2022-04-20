@@ -41,7 +41,7 @@ int net_initTCP(int sv_port)
     return sd;
 }
 
-// invia un messaggio su un socket TCP seguendo lo schema CODE-MSG_LEN-MSG
+// invia un messaggio su un socket TCP seguendo lo schema CODE-LENGTH-MESSAGE
 int net_sendTCP(int sd, char protocol[6], void* buffer, int len)
 {
     uint32_t lmsg;
