@@ -7,6 +7,8 @@
 \usepackage{listings}
 \usepackage{wrapfig}
 \usepackage{enumitem}
+\usepackage{helvet}
+\renewcommand{\familydefault}{\sfdefault}
 \usepackage[left=1.5cm, right=1.5cm, top=3cm, bottom=2cm]{geometry}
 \author{Guillaume Quint (577923)}
 \title{\vspace{-4em}Documentazione Progetto Reti Informatiche\\Ingegneria Informatica UNIPI A.A. 21/22}
@@ -22,7 +24,7 @@
     salvataggio in cache per la messaggistica offline. Inoltre svolge
     una comunicazione di tipo peer-to-peer per la funzionalità di
     file-sharing e nella comunicazione tra devices nel caso in cui il
-    server fosse irraggiungibile. Questa funzionalità di tipo
+    server fosse irraggiungibile. Quest'ultima funzionalità di tipo
     inaffidabile è stata aggiunta rispetto alle specifiche originali, ed
     è descritta nel paragrafo del device.
 \paragraph{Strutture dati utilizzate}
@@ -93,14 +95,16 @@
     Il server ha il ruolo di inoltrare i messaggi ai destinatari per
     conto dei vari utenti. Se tutti i destinatari sono online e ricevono
     il messaggio, al mittente viene inviata una risposta con il codice
-    \texttt{READ:} con il significato che il suo messaggio è stato
+    \texttt{READ:} a significare che il suo messaggio è stato
     letto da tutti. Altrimenti la risposta ha il codice \texttt{CACHE} e
     per ogni utente che non ha ricevuto il messaggio, il server lo salva
-    localmente. In particolare, all'interno della cartella
-    \texttt{hanging} e nella sottocartella chiamata come il
-    destinatario, verrà aggiunto il contenuto del messaggio nel
-    file chiamato come il mittente (in breve, il messaggio andrà in
-    \texttt{./hanging/\textless{}destinatario\textgreater{}/\textless{}mittente\textgreater{}}).
+    localmente. 
+    
+    In particolare, il contenuto del messaggio verrà aggiunto ad un file
+    chiamato come il mittente che si trova all'interno della cartella 
+    \texttt{hanging} e della sottocartella chiamata come il destinatario
+	(in breve, il messaggio andrà nel file 
+	\texttt{./hanging/\textless{}destinatario\textgreater{}/\textless{}mittente\textgreater{}}).
 
     Quando il server riceve un comando di \texttt{hanging} (messaggio
     con codice \texttt{HANG?}) da parte di un utente, gli basta
@@ -132,7 +136,7 @@
     recapitati quando l'utente è offline sul server (con il nome
     dell'utente nella cartella \texttt{./hanging/}). Attenzione: NON
     viene creato il file di rubrica. Inoltre l'applicazione non
-    implementa alcuna funzione per crearla e modificarla. Pertanto il
+    implementa alcuna funzione per crearlo e modificarlo. Pertanto il
     nuovo utente non sarà in grado di comunicare con nessuno, fintanto
     che non verrà creato il file \texttt{contacts} nella cartella
     personale (quindi
@@ -157,7 +161,7 @@
 
     Quando un utente è connesso su un device dispone di una lista di
     comandi aggiuntivi. \texttt{hanging} chiede al server di accedere al
-    proprio spazio personale di messaggi in attesa di essere letti
+    proprio spazio personale di messaggi non ricevuti
     (mostra il contenuto della cartella
     \texttt{./hanging/\textless{}nome\_utente\textgreater{}/}). I files
     che vi si trovano, chiamati come il nome dell'utente mittente,
@@ -166,6 +170,13 @@
     \texttt{SHOW:}) su uno di quei nomi, l'utente legge i messaggi che
     non gli erano stati recapitati e il device li appende allo storico
     dei messaggi nella chat con quell'utente.
+
+	I comandi \texttt{out} e \texttt{esc} effettuano la disconnessione
+	dell'utente dal device, cercando di comunicare l'uscita al server.
+	Se quest'ultimo fosse irraggiungibile, il device salva localmente
+	sul file \texttt{./\textless{}nome\_utente\textgreater{}/disconnect}
+	l'istante di disconnessione, così che possa tentare di recapitarlo
+	al prossimo login.
 
     \texttt{chat} permette di entrare nella chat con un utente presente
     nella rubrica, a prescindere che questo sia connesso. Viene quindi
@@ -191,7 +202,7 @@
     connesso. Infine il comando \texttt{share} permette di condividere
     un file con tutti i destinatari. La comunicazione non coinvolge il
     server, ma se il device non dovesse conoscere la porta su cui
-    raggiungere il destinatario, effettuerà prima una richiesta di
+    raggiungere un destinatario, effettuerà prima una richiesta di
     risoluzione della porta sul server. Per evitare di bloccare l'input
     in attesa del trasferimento di files di grosse dimensioni, la
     condivisione viene effettuata su un nuovo processo per ogni
@@ -212,17 +223,17 @@
     in attesa della notifica di lettura da parte del server
 
     Nel caso in cui il server non fosse raggiungibile per l'inoltro del
-    messaggio, il device cercherà di contattare manualmente gli altri
+    messaggio, il device cercherà di comunicare direttamente con gli altri
     utenti tramite le informazioni che ha a disposizione. Fallisce nel
-    caso in cui non conosca la porta del destinatario, in quanto non può
-    fare affidamento sul server per ottenere questa informazione.
+    caso in cui non abbia salvato precedentemente la porta del destinatario, 
+    in quanto non può fare affidamento sul server per ottenere questa informazione.
 \paragraph{Gestione del IO}
 Tramite la primitiva \texttt{select}, l'applicazione sfrutta il
     multiplexing dell'IO con possibilità di timeout per gestire i
     comandi provenienti da tastiera e dai sockets senza effettuare
     un'attesa attiva. La gestione di richieste provenienti sul
     protocollo TCP viene svolta su un processo separato, così che non si
-    rischi di bloccare l'input da terminale.
+    rischi di bloccare l'intera applicazione.
 \paragraph{Network utility}
 	L'applicazione fa affidamento sia sul protocollo TCP per la
     comunicazione affidabile dei messaggi, sia sul protocollo UDP per
