@@ -1,0 +1,6 @@
+quint/*.swp
+quint/*/tmp/*
+quint/*.o
+quint/serv
+quint/dev
+quint/*.exe
