@@ -802,7 +802,7 @@ void Device_share(char* file_name)
 // altre richieste per colmare le informazioni di connessione mancanti.
 void Device_send(char* message)
 {
-    int sd, newlen, pid;
+    int sd, newlen;
     char *payload, 
         *joined_chat_receivers,
         *dest,

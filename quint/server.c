@@ -382,7 +382,6 @@ void Server_hanging(int sd, char* user)
 {
     struct dirent *de;
     char userdir[USERNAME_LEN + strlen(FORMAT_HANGING)+1],
-        *hanging_users,
         count_str[4];
     DIR *dr;
     int count;

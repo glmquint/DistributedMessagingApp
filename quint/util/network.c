@@ -54,13 +54,13 @@ int net_sendTCP(int sd, char protocol[6], void* buffer, int len)
         exit(-1);
     }
     DEBUG_PRINT(("send buffer length: %d", len));
-    if (ret = send(sd, (void *)&lmsg, sizeof(uint32_t), 0) < 0) {
+    if ((ret = send(sd, (void *)&lmsg, sizeof(uint32_t), 0)) < 0) {
         perror("Errore in fase di invio lunghezza messaggio");
         exit(-1);
     }
     if (len > 0) { // non eseguire la send se il messaggio è vuoto
         DEBUG_PRINT(("send buffer: %s", (char*)buffer));
-        if (ret = send(sd, buffer, len, 0) < len) {
+        if ((ret = send(sd, buffer, len, 0)) < len) {
             perror("Errore in fase di invio messaggio");
             exit(-1);
         }
@@ -144,7 +144,7 @@ void net_askHearthBeat(int remote_port, int local_port)
 void net_answerHeartBeat(int sd, int local_port)
 {
     char buffer[REQ_LEN];
-    int n, len;
+    socklen_t len;
     struct sockaddr_in claddr;
     char* alive_msg = "ALIVE";
     uint16_t remote_port_net, local_port_net;
@@ -178,7 +178,8 @@ void net_answerHeartBeat(int sd, int local_port)
 int net_receiveHeartBeat(int sd)
 {
     char buffer[REQ_LEN];
-    int remote_port, len;
+    int remote_port;
+    socklen_t len;
     struct sockaddr_in claddr;
     uint16_t remote_port_net;
 

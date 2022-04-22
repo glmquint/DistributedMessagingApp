@@ -5,26 +5,26 @@ dev: device.o IOMultiplex.o cmd.o network.o time.o
 	gcc -Wall device.o IOMultiplex.o cmd.o network.o time.o -o dev
 
 device.o: device.c
-	gcc -c -g device.c
+	gcc -Wall -c -g device.c
 
 # make rule per il server
 serv: server.o IOMultiplex.o cmd.o network.o time.o
 	gcc -Wall server.o IOMultiplex.o cmd.o network.o time.o -o serv
 
 server.o: server.c
-	gcc -c -g server.c
+	gcc -Wall -c -g server.c
 
 IOMultiplex.o: util/IOMultiplex.c
-	gcc -c -g util/IOMultiplex.c
+	gcc -Wall -c -g util/IOMultiplex.c
 
 cmd.o: util/cmd.c
-	gcc -c -g util/cmd.c
+	gcc -Wall -c -g util/cmd.c
 
 network.o: util/network.c
-	gcc -c -g util/network.c
+	gcc -Wall -c -g util/network.c
 
 time.o: util/time.c
-	gcc -c -g util/time.c
+	gcc -Wall -c -g util/time.c
 
 # pulizia dei file della compilazione 
 clean: 
