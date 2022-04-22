@@ -4,3 +4,4 @@ quint/*.o
 quint/serv
 quint/dev
 quint/*.exe
+*.zip
